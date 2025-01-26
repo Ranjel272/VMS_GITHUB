@@ -1,0 +1,153 @@
+/* Modal Overlay */
+.addsize-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6); /* Darker overlay for focus */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Ensure the modal is on top */
+}
+
+/* Modal Content */
+.addsize-modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 1200px;
+    min-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-sizing: border-box;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Title Styling */
+.addsize-h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #333;
+    font-weight: 600;
+}
+
+/* Close button (X) */
+.addsize-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #333;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.addsize-close-btn:hover {
+    color: #fe3835; /* Change to red on hover */
+}
+
+/* Form Group Styling */
+.addsize-form-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px; /* Increased margin for better separation */
+}
+
+.addsize-form-group label {
+    width: 30%; /* Label takes 30% of the row width */
+    text-align: left;
+    font-weight: bold;
+    margin-right: 20px; /* More spacing between label and input */
+    font-size: 16px;
+    color: #555;
+}
+
+.addsize-form-group input,
+.addsize-form-group textarea,
+.addsize-form-group select {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    color: #333;
+    transition: border-color 0.3s ease;
+}
+
+.addsize-form-group input:focus,
+.addsize-form-group textarea:focus,
+.addsize-form-group select:focus {
+    border-color: #fe3835; /* Red border on focus */
+    outline: none;
+}
+
+/* Submit Button (Add Size) */
+button.addsize-submit-btn {
+    width: 100px;
+    padding: 14px;
+    background-color: #fe3835;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    margin-top: 30px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+button.addsize-submit-btn:hover {
+    background-color: #d32f2f;
+    transform: translateY(-2px); /* Lift the button slightly on hover */
+}
+
+button.addsize-submit-btn:active {
+    background-color: #c62828; /* Darker red when clicked */
+    transform: translateY(0); /* Button returns to normal position */
+}
+
+/* Error message styling */
+.error-message {
+    color: #fe3835;
+    font-size: 16px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .addsize-modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+
+    .addsize-form-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .addsize-form-group label {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+
+    .addsize-form-group input,
+    .addsize-form-group textarea,
+    .addsize-form-group select {
+        width: 100%;
+    }
+
+    button.addsize-submit-btn {
+        padding: 12px;
+        width: 40px
+    }
+}
