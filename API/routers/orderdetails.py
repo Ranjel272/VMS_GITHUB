@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from typing import List
-import database as database  
+import database  
 
 # Create a response model for the order details
 class OrderDetails(BaseModel):
@@ -27,11 +27,36 @@ class PurchaseOrder(BaseModel):
     orderStatus: str
     statusDate: datetime
 
+
+class OrderSummary(BaseModel):
+    orderID: int
+    productName: str
+    size: str
+    category: str
+    quantity: int
+    totalPrice: float
+    customerName: str
+    warehouseAddress: str
+
 # Create a router for order details
 router = APIRouter()
 
+def parse_datetime(date_str):
+    """Convert string timestamp to datetime format for SQL Server."""
+    if isinstance(date_str, str):
+        try:
+            return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')  # Standard format
+        except ValueError:
+            try:
+                return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S.%f')  # Handles milliseconds
+            except ValueError:
+                return datetime.strptime(date_str, '%Y-%m-%d')  # Handles date only
+    return date_str  # If already datetime, return as-is
+
+
 @router.post("/orders", response_model=OrderDetails)
 async def display_order(payload: dict):
+    conn = None
     try:
         # Log the incoming payload for debugging purposes
         print("Received Payload:", payload)
@@ -86,30 +111,26 @@ async def display_order(payload: dict):
             order_details.vendorName = "Vendor not found or inactive"
 
         # Convert orderDate and expectedDate to proper formats
-        order_date = datetime.strptime(payload["orderDate"], '%Y-%m-%d') if payload.get("orderDate") else None
-        expected_date = datetime.strptime(payload["expectedDate"], '%Y-%m-%d') if payload.get("expectedDate") else None
-        status_date = datetime.now().strftime('%Y-%m-%d')
+        order_date = parse_datetime(payload.get("orderDate"))
+        expected_date = parse_datetime(payload.get("expectedDate"))
+        status_date = parse_datetime(datetime.utcnow())
+
 
         # Ensure the customer exists in the Customers table
         await cursor.execute("SELECT customerID FROM Customers WHERE customerID = ?", (payload["userID"],))
         customer_record = await cursor.fetchone()
         if not customer_record:
-            await cursor.execute("SET IDENTITY_INSERT Customers ON")
-
             await cursor.execute(
                 """
-                INSERT INTO Customers (customerID, customerName, customerWarehouseName, customerAddress)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO Customers (customerName, customerWarehouseName, customerAddress)
+                VALUES (?, ?, ?)
                 """,
                 (
-                    payload["userID"],
                     payload["userName"],
                     payload["warehouseName"],
                     payload["warehouseAddress"],
                 ),
             )
-            await cursor.execute("SET IDENTITY_INSERT Customers OFF")
-
             await conn.commit()
             customer_id = payload["userID"]
         else:
@@ -158,48 +179,68 @@ async def display_order(payload: dict):
     except Exception as e:
         print(f"Error occurred: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing the order: {str(e)}")
-    
-@router.get("/orders/pending", response_model=List[PurchaseOrder])
-async def get_pending_orders():
+    finally:
+        if conn:
+            await conn.close()
+
+@router.get("/order-details/orders", response_model=List[OrderSummary])
+async def get_order_details():
+    conn = None
     try:
         # Establish database connection
         conn = await database.get_db_connection()
         cursor = await conn.cursor()
 
-        # Query to fetch all orders with the status 'Pending'
+        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
         query = """
         SELECT 
-            orderID,
-            orderDate,
-            expectedDate,
-            orderStatus,
-            statusDate
+            po.orderID,  -- Include orderID
+            p.productName, 
+            p.size, 
+            p.category, 
+            pod.orderQuantity AS quantity,
+            (p.unitPrice * pod.orderQuantity) AS totalPrice,
+            c.customerName,
+            c.customerAddress AS warehouseAddress
         FROM 
-            purchaseOrders
-        WHERE 
-            orderStatus = 'Pending'
+            purchaseOrderDetails pod
+        JOIN 
+            Products p ON pod.productID = p.productID
+        JOIN 
+            purchaseOrders po ON pod.orderID = po.orderID
+        JOIN 
+            Customers c ON po.customerID = c.customerID
+        
+        WHERE
+            po.orderStatus = 'Pending'  -- Filter orders by 'Pending' status
         """
         await cursor.execute(query)
-        orders = await cursor.fetchall()
+        results = await cursor.fetchall()
 
-        # Convert the results to a list of PurchaseOrder objects
-        pending_orders = [
-            PurchaseOrder(
-                orderID=row[0],
-                orderDate=row[1],
-                expectedDate=row[2],
-                orderStatus=row[3],
-                statusDate=row[4],
+        # Format results into response model
+        order_summaries = [
+            OrderSummary(
+                orderID=row[0],  # Map orderID
+                productName=row[1],
+                size=row[2],
+                category=row[3],
+                quantity=row[4],
+                totalPrice=row[5],
+                customerName=row[6],
+                warehouseAddress=row[7]
             )
-            for row in orders
+            for row in results
         ]
 
         # Close cursor and connection
         await cursor.close()
         await conn.close()
 
-        return pending_orders
+        return order_summaries
 
     except Exception as e:
         print(f"Error occurred: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error fetching pending orders: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching order details: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()
