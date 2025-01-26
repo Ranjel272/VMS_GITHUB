@@ -37,6 +37,7 @@ class OrderSummary(BaseModel):
     totalPrice: float
     customerName: str
     warehouseAddress: str
+    #image_path: str
 
 # Create a router for order details
 router = APIRouter()

@@ -18,6 +18,15 @@ const AddProductsForm = ({ onClose }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // Validation for size and price fields
+    if (name === "size" || name === "unitPrice") {
+      const regex = /^[0-9]*\.?[0-9]*$/; // Matches numbers with an optional decimal point
+      if (!regex.test(value)) {
+        return; // Ignore invalid input
+      }
+    }
+
     setFormData((prevState) => ({ ...prevState, [name]: value }));
   };
 
@@ -59,8 +68,8 @@ const AddProductsForm = ({ onClose }) => {
         size: formData.size,
         category: formData.category,
         unitPrice: parseFloat(formData.unitPrice), // Ensure it's a number
-        quantity: parseInt(formData.quantity),     // Ensure it's an integer
-        image: formData.image_path,                // Base64 string
+        quantity: parseInt(formData.quantity), // Ensure it's an integer
+        image: formData.image_path, // Base64 string
       };
 
       // Send POST request to the API

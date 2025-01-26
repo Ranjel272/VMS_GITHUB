@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./Orders.css";
-import { FaBox, FaShoppingCart, FaShippingFast, FaTruck, FaBan } from "react-icons/fa";
+import { FaBox, FaShoppingCart, FaShippingFast, FaTruck, FaBan, FaCheckCircle, FaClipboardCheck } from "react-icons/fa";
 
 // Utility function to send status updates to the backend
 const sendOrderStatusUpdate = async (orderID, status) => {
@@ -51,12 +51,71 @@ const sendOrderToShipped = async (orderID, setShippedOrders, setToShipOrders, to
     throw error;
   }
 };
+// Add a function to move an order to 'Delivered'
+const sendOrderToDelivered = async (orderID, setDeliveredOrders, setShippedOrders, shippedOrders) => {
+  try {
+    const response = await fetch(`http://localhost:8001/orders/vms/orders/${orderID}/Delivered`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ orderStatus: "Delivered" }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update order status to Delivered");
+    }
+
+    const data = await response.json();
+    console.log(`Order ID ${orderID} status updated to: Delivered`);
+
+    // After updating, move the order to 'Delivered' in UI state
+    setDeliveredOrders((prev) => [...prev, ...shippedOrders.filter(order => order.id === orderID)]);
+    setShippedOrders((prev) => prev.filter(order => order.id !== orderID));
+
+    return data;
+  } catch (error) {
+    console.error("Error updating order status to Delivered:", error);
+    throw error;
+  }
+};
+
+// Add a function to move an order to 'Complete'
+const sendOrderToComplete = async (orderID, setCompletedOrders, setDeliveredOrders, deliveredOrders) => {
+  try {
+    const response = await fetch(`http://localhost:8001/orders/vms/orders/${orderID}/complete`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ orderStatus: "Completed" }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update order status to Completed");
+    }
+
+    const data = await response.json();
+    console.log(`Order ID ${orderID} status updated to: Completed`);
+
+    // After updating, move the order to 'Completed' in UI state
+    setCompletedOrders((prev) => [...prev, ...deliveredOrders.filter(order => order.id === orderID)]);
+    setDeliveredOrders((prev) => prev.filter(order => order.id !== orderID));
+
+    return data;
+  } catch (error) {
+    console.error("Error updating order status to Completed:", error);
+    throw error;
+  }
+};
 
 const Orders = () => {
   const [pendingOrders, setPendingOrders] = useState([]);
-  const [toShipOrders, setToShipOrders] = useState([]);
+  const [ToShipOrders, setToShipOrders] = useState([]);
   const [shippedOrders, setShippedOrders] = useState([]);
   const [rejectedOrders, setRejectedOrders] = useState([]);
+  const [deliveredOrders, setDeliveredOrders] = useState([]);
+  const [completedOrders, setCompletedOrders] = useState([]);
 
   // Fetch data from API
   useEffect(() => {
@@ -66,11 +125,8 @@ const Orders = () => {
         if (!response.ok) throw new Error("Failed to fetch orders");
         const data = await response.json();
 
-        // Log the fetched data to the console
-        console.log("Fetched orders:", data);
-
-        const formattedData = data.map((item, index) => ({
-          id: item.orderID, // Use orderID from the backend
+        const formattedData = data.map((item) => ({
+          id: item.orderID,
           productName: item.productName,
           category: item.category,
           size: item.size,
@@ -87,16 +143,14 @@ const Orders = () => {
     };
     fetchOrders();
   }, []);
-
+  
+//Confirmed Orders Display on To Ship
   useEffect(() => {
-    const fetchToShipOrders = async () => {
+    const fetchConfirmedOrders = async () => {
       try {
         const response = await fetch("http://localhost:8001/orders/confirmed/orders");
         if (!response.ok) throw new Error("Failed to fetch 'To Ship' orders");
         const data = await response.json();
-
-        // Log fetched "To Ship" orders
-        console.log("Fetched 'To Ship' orders:", data);
 
         const formattedToShipOrders = data.map((item) => ({
           id: item.orderID,
@@ -112,22 +166,99 @@ const Orders = () => {
 
         setToShipOrders(formattedToShipOrders);
       } catch (error) {
-        console.error("Error fetching 'To Ship' orders:", error);
+        console.error("Error fetching 'Confirmed' orders:", error);
       }
     };
-
-    // Fetch "To Ship" orders
-    fetchToShipOrders();
+    fetchConfirmedOrders();
   }, []);
 
-  // Approve Function: Move to "To Ship"
+  useEffect(() => {
+    const fetchShippedOrders = async () => {
+      try {
+        const response = await fetch("http://localhost:8001/orders/toship/orders");
+        if (!response.ok) throw new Error("Failed to fetch 'Shipped' orders");
+        const data = await response.json();
+  
+        const formattedShippedOrders = data.map((item) => ({
+          id: item.orderID,
+          productName: item.productName,
+          size: item.size,
+          category: item.category,
+          quantity: item.quantity,
+          total: `$${item.totalPrice.toFixed(2)}`, // Format price
+          customerName: item.customerName,
+          address: item.warehouseAddress,
+          image: "https://via.placeholder.com/150", // Placeholder image
+        }));
+  
+        setShippedOrders(formattedShippedOrders);
+      } catch (error) {
+        console.error("Error fetching 'Shipped' orders:", error);
+      }
+    };
+    fetchShippedOrders();
+  }, []);
+
+  useEffect(() => {
+    const fetchdeliveredOrders = async () => {
+      try {
+        const response = await fetch("http://localhost:8001/orders/vms/orders/delivered");
+        if (!response.ok) throw new Error("Failed to fetch 'Delivered' orders");
+        const data = await response.json();
+  
+        const formattedDeliveredOrders = data.map((item) => ({
+          id: item.orderID,
+          productName: item.productName,
+          size: item.size,
+          category: item.category,
+          quantity: item.quantity,
+          total: `$${item.totalPrice.toFixed(2)}`, // Format price
+          customerName: item.customerName,
+          address: item.warehouseAddress,
+          image: "https://via.placeholder.com/150", // Placeholder image
+        }));
+  
+        setDeliveredOrders(formattedDeliveredOrders);
+      } catch (error) {
+        console.error("Error fetching 'Delivered' orders:", error);
+      }
+    };
+    fetchdeliveredOrders();
+  }, []);
+  
+  useEffect(() => {
+    const CompletedOrders = async () => {
+      try {
+        const response = await fetch("http://localhost:8001/orders/vms/orders/Completed");
+        if (!response.ok) throw new Error("Failed to fetch 'Completed' orders");
+        const data = await response.json();
+  
+        const formattedcompletedOrders = data.map((item) => ({
+          id: item.orderID,
+          productName: item.productName,
+          size: item.size,
+          category: item.category,
+          quantity: item.quantity,
+          total: `$${item.totalPrice.toFixed(2)}`, // Format price
+          customerName: item.customerName,
+          address: item.warehouseAddress,
+          image: "https://via.placeholder.com/150", // Placeholder image
+        }));
+  
+        setCompletedOrders(formattedcompletedOrders);
+      } catch (error) {
+        console.error("Error fetching 'Completed' orders:", error);
+      }
+    };
+  
+    CompletedOrders(); // Call the function
+  }, []);  
+  
   const approveOrder = async (order) => {
     try {
       console.log(`Approving order with ID: ${order.id}`);
-      // Send approval status to backend
       const response = await sendOrderStatusUpdate(order.id, "Confirmed");
 
-      // Update the UI state by moving the order to "To Ship" and removing from "Pending"
       setToShipOrders((prev) => [...prev, order]);
       setPendingOrders((prev) => prev.filter((item) => item.id !== order.id));
 
@@ -137,14 +268,11 @@ const Orders = () => {
     }
   };
 
-  // Reject Function: Move to "Rejected Orders"
   const rejectOrder = async (order) => {
     try {
       console.log(`Rejecting order with ID: ${order.id}`);
-      // Send rejection status to backend
       const response = await sendOrderStatusUpdate(order.id, "Rejected");
 
-      // Update the UI state by moving the order to "Rejected" and removing from "Pending"
       setRejectedOrders((prev) => [...prev, order]);
       setPendingOrders((prev) => prev.filter((item) => item.id !== order.id));
 
@@ -154,18 +282,18 @@ const Orders = () => {
     }
   };
 
-  // Card Data
   const cardData = [
-    { title: "Total Orders", count: pendingOrders.length + toShipOrders.length + shippedOrders.length + rejectedOrders.length, icon: <FaBox /> },
+    { title: "Total Orders", count: pendingOrders.length + ToShipOrders.length + shippedOrders.length + rejectedOrders.length + deliveredOrders.length + completedOrders.length, icon: <FaBox /> },
     { title: "Pending", count: pendingOrders.length, icon: <FaShoppingCart /> },
-    { title: "To Ship", count: toShipOrders.length, icon: <FaShippingFast /> },
+    { title: "To Ship", count: ToShipOrders.length, icon: <FaShippingFast /> },
     { title: "Shipped", count: shippedOrders.length, icon: <FaTruck /> },
     { title: "Rejected", count: rejectedOrders.length, icon: <FaBan /> },
+    { title: "Delivered", count: deliveredOrders.length, icon: <FaCheckCircle /> },
+    { title: "Completed", count: completedOrders.length, icon: <FaClipboardCheck /> },
   ];
 
   return (
     <div className="history-container">
-      {/* Cards */}
       <div className="cards-container">
         {cardData.map((card, index) => (
           <div className="card" key={index}>
@@ -178,7 +306,6 @@ const Orders = () => {
         ))}
       </div>
 
-      {/* Orders Lists */}
       <div className="orders-lists">
         {/* Pending Orders */}
         <div className="orders-section">
@@ -190,14 +317,18 @@ const Orders = () => {
                   <img src={order.image} alt={order.productName} className="product-image" />
                 </div>
                 <div className="order-details">
-                  <p className="product-name">Product Name: {order.productName}</p>
+                  <h4>{order.productName}</h4>
                   <p>Category: {order.category}</p>
-                  <p>Size: {order.size}</p>
                   <p>Quantity: {order.quantity}</p>
+                  <p>Price: {order.total}</p>
                 </div>
-                <div className="actions">
-                  <button className="action-btn reject" onClick={() => rejectOrder(order)}>Reject</button>
-                  <button className="action-btn approve" onClick={() => approveOrder(order)}>Approve</button>
+                <div className="order-actions">
+                  <button className="approve-btn" onClick={() => approveOrder(order)}>
+                    Approve
+                  </button>
+                  <button className="reject-btn" onClick={() => rejectOrder(order)}>
+                    Reject
+                  </button>
                 </div>
               </div>
             ))}
@@ -206,45 +337,96 @@ const Orders = () => {
 
         {/* To Ship Orders */}
         <div className="orders-section">
-          <h3>To Ship</h3>
+          <h3>To Ship Orders</h3>
           <div className="scrollable-list">
-            {toShipOrders.map((order) => (
+            {ToShipOrders.map((order) => (
               <div className="order-item" key={order.id}>
                 <div className="order-photo">
                   <img src={order.image} alt={order.productName} className="product-image" />
                 </div>
                 <div className="order-details">
-                  <p className="product-name">Product Name: {order.productName}</p>
+                  <h4>{order.productName}</h4>
                   <p>Category: {order.category}</p>
-                  <p>Size: {order.size}</p>
                   <p>Quantity: {order.quantity}</p>
-                  <hr />
-                  <p>Customer Name: {order.customerName}</p>
-                  <p>Address: {order.address}</p>
-                  <p>Total: {order.total}</p>
+                  <p>Price: {order.total}</p>
                 </div>
-                <div className="actions">
-                  <button className="action-btn to-ship" onClick={() => sendOrderToShipped(order.id, setShippedOrders, setToShipOrders, toShipOrders)}>Ship</button>
+                <div className="order-actions">
+                  <button className="ship-btn" onClick={() => sendOrderToShipped(order.id, setShippedOrders, setToShipOrders, ToShipOrders)}>
+                    Ship
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Shipped */}
+        {/* Shipped Orders */}
         <div className="orders-section">
-          <h3>Shipped</h3>
+          <h3>Shipped Orders</h3>
           <div className="scrollable-list">
-            {rejectedOrders.map((order) => (
+            {shippedOrders.map((order) => (
               <div className="order-item" key={order.id}>
                 <div className="order-photo">
                   <img src={order.image} alt={order.productName} className="product-image" />
                 </div>
                 <div className="order-details">
-                  <p className="product-name">Product Name: {order.productName}</p>
+                  <h4>{order.productName}</h4>
                   <p>Category: {order.category}</p>
-                  <p>Size: {order.size}</p>
                   <p>Quantity: {order.quantity}</p>
+                  <p>Price: {order.total}</p>
+                </div>
+                <div className="order-actions">
+                  <button className="deliver-btn" onClick={() => sendOrderToDelivered(order.id, setDeliveredOrders, setShippedOrders, shippedOrders)}>
+                    Delivered
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Delivered Orders */}
+        <div className="orders-section">
+          <h3>Delivered Orders</h3>
+          <div className="scrollable-list">
+            {deliveredOrders.map((order) => (
+              <div className="order-item" key={order.id}>
+                <div className="order-photo">
+                  <img src={order.image} alt={order.productName} className="product-image" />
+                </div>
+                <div className="order-details">
+                  <h4>{order.productName}</h4>
+                  <p>Category: {order.category}</p>
+                  <p>Quantity: {order.quantity}</p>
+                  <p>Price: {order.total}</p>
+                </div>
+                <div className="order-actions">
+                  <button className="complete-btn" onClick={() => sendOrderToComplete(order.id, setCompletedOrders, setDeliveredOrders, deliveredOrders)}>
+                    Complete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Completed Orders */}
+        <div className="orders-section">
+          <h3>Completed Orders</h3>
+          <div className="scrollable-list">
+            {completedOrders.map((order) => (
+              <div className="order-item" key={order.id}>
+                <div className="order-photo">
+                  <img src={order.image} alt={order.productName} className="product-image" />
+                </div>
+                <div className="order-details">
+                  <h4>{order.productName}</h4>
+                  <p>Category: {order.category}</p>
+                  <p>Quantity: {order.quantity}</p>
+                  <p>Price: {order.total}</p>
+                </div>
+                <div className="order-actions">
+                  <span className="completed-status">Completed</span>
                 </div>
               </div>
             ))}

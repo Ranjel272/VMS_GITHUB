@@ -143,7 +143,7 @@ const EditProductForm = ({ product, category, onClose }) => {
   return (
     <div className="edit-product-form">
       {/* Close Button */}
-      <button className="close-button" onClick={onClose}>X</button>
+      <button className="Editp-close-button" onClick={onClose}>x</button>
 
       <div className="scrollable-container">
         {/* Photo Section */}

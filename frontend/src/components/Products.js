@@ -3,10 +3,12 @@ import axios from "axios";
 import "./Products.css";
 import AddProductsForm from "./AddProductsForm";
 import EditProductForm from "./EditProductForm";
+import EditDescription from "./EditDescription";
 
 const Products = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [products, setProducts] = useState({
     women: [],
@@ -43,18 +45,17 @@ const Products = () => {
     }
   };
 
+  // Repeat the fetch logic for men's, girls', and boys' products (omitted for brevity)
   useEffect(() => {
     console.log("Fetching men's products...");
     fetchmenProducts();
   }, []);
-
   const fetchmenProducts = async () => {
     try {
       const response = await axios.get(
         "http://127.0.0.1:8001/products/products/mens-Leather-Shoes"
       );
       console.log("Fetched men's products response:", response.data);
-
       const menProducts = response.data || [];
       setProducts((prevState) => ({
         ...prevState,
@@ -70,19 +71,16 @@ const Products = () => {
       console.error("Error fetching men's products:", error);
     }
   };
-
   useEffect(() => {
     console.log("Fetching girls's products...");
     fetchgirlsProducts();
   }, []);
-
   const fetchgirlsProducts = async () => {
     try {
       const response = await axios.get(
         "http://127.0.0.1:8001/products/products/girls-Leather-Shoes"
       );
       console.log("Fetched girls's products response:", response.data);
-
       const girlsProducts = response.data || [];
       setProducts((prevState) => ({
         ...prevState,
@@ -98,20 +96,16 @@ const Products = () => {
       console.error("Error fetching girl's products:", error);
     }
   };
-
-
   useEffect(() => {
     console.log("Fetching boy's products...");
     fetchboysProducts();
   }, []);
-
   const fetchboysProducts = async () => {
     try {
       const response = await axios.get(
         "http://127.0.0.1:8001/products/products/boys-Leather-Shoes"
       );
       console.log("Fetched boy's products response:", response.data);
-
       const boysProducts = response.data || [];
       setProducts((prevState) => ({
         ...prevState,
@@ -128,6 +122,7 @@ const Products = () => {
     }
   };
 
+
   const openAddModal = () => {
     console.log("Opening Add Product modal");
     setIsAddModalOpen(true);
@@ -143,7 +138,7 @@ const Products = () => {
     setSelectedProduct({
       product,
       index,
-      category,  // Passing category as a string like 'women'
+      category,
       imageURL: product.imageURL,
     });
     setIsEditModalOpen(true);
@@ -152,6 +147,22 @@ const Products = () => {
   const closeEditModal = () => {
     console.log("Closing Edit Product modal");
     setIsEditModalOpen(false);
+  };
+
+  const openDescriptionModal = (product, index, category) => {
+    console.log("Opening Edit Description modal for:", { product, index, category });
+    setSelectedProduct({
+      product,
+      index,
+      category,
+      imageURL: product.imageURL,
+    });
+    setIsDescriptionModalOpen(true);
+  };
+
+  const closeDescriptionModal = () => {
+    console.log("Closing Edit Description modal");
+    setIsDescriptionModalOpen(false);
   };
 
   const addProduct = (newProduct) => {
@@ -199,35 +210,20 @@ const Products = () => {
     }));
   };
 
-  const countTotalProducts = () => {
-    const uniqueProductNames = new Set(); // Set to track unique product names
+  const editDescription = (updatedDescription, category, index) => {
+    console.log("Editing description:", { updatedDescription, category, index });
 
-    // Iterate over each category and add the product name to the set
-    Object.values(products).forEach((category) => {
-      category.forEach((product) => {
-        uniqueProductNames.add(product.productName);
-      });
-    });
+    const updatedProduct = { ...products[category][index], productDescription: updatedDescription };
+    const updatedProducts = [...products[category]];
+    updatedProducts[index] = updatedProduct;
 
-    const totalUniqueProducts = uniqueProductNames.size; // The size of the set is the count of unique products
-    console.log("Total unique products count:", totalUniqueProducts);
-    return totalUniqueProducts;
-  };
-
-  const countTotalWomenProducts = () => {
-    const uniqueProductNames = new Set(); // Set to track unique women's product names
-
-    products.women.forEach((product) => {
-      uniqueProductNames.add(product.productName);
-    });
-
-    const totalUniqueWomenProducts = uniqueProductNames.size; // The size of the set is the count of unique women's products
-    console.log("Total unique women's products count:", totalUniqueWomenProducts);
-    return totalUniqueWomenProducts;
+    setProducts((prevState) => ({
+      ...prevState,
+      [category]: updatedProducts,
+    }));
   };
 
   const renderProductCards = (category) => {
-    // Use a Set to store product names to avoid duplication
     const displayedNames = new Set();
 
     return products[category].map((product, index) => {
@@ -238,19 +234,22 @@ const Products = () => {
       displayedNames.add(product.productName); // Mark this product as displayed
 
       return (
-        <div
-          className="product-card"
-          key={index}
-          onClick={() => openEditModal(product, index, category)}  // Passing 'women' instead of 'womens'
-        >
+        <div className="product-card" key={index}>
           <img
             src={product.imageURL || "placeholder.png"}  // Default to placeholder if no imageURL
             alt={product.productName}
             className="product-image"
+            onClick={() => openEditModal(product, index, category)}  // Open the edit modal when card is clicked
           />
           <div className="product-details">
             <h4>{product.productName}</h4>
           </div>
+          <button
+            className="edit-btn"
+            onClick={() => openDescriptionModal(product, index, category)}  // Open the description modal when edit button is clicked
+          >
+            Edit 
+          </button>
         </div>
       );
     });
@@ -261,30 +260,13 @@ const Products = () => {
       <div className="dashboard">
         {/* Total Number of Products */}
         <div className="category-box">
-          <h2>{countTotalProducts()}</h2>
-          <p>Total Number of Products</p>
+          <h2>{products.women.length + products.men.length + products.girls.length + products.boys.length}</h2>
+          <p>Total Products</p>
         </div>
 
-        {/* Total Number of Women's Products */}
-        <div className="category-box">
-          <h2>{countTotalWomenProducts()}</h2>
-          <p>Women</p>
-        </div>
-
-        {/* Categories like Men, Girls, Boys */}
+        {/* Categories like Women, Men, Girls, Boys */}
         {["women", "men", "girls", "boys"].map((category) => (
           <div key={category} className="category-box">
-            <i
-              className={`fa ${
-                category === "women"
-                  ? "fa-female"
-                  : category === "men"
-                  ? "fa-male"
-                  : category === "girls"
-                  ? "fa-child"
-                  : "fa-baby"
-              }`}
-            ></i>
             <h2>{products[category].length}</h2>
             <p>{category.charAt(0).toUpperCase() + category.slice(1)}</p>
           </div>
@@ -303,7 +285,17 @@ const Products = () => {
           product={selectedProduct.product}
           index={selectedProduct.index}
           editProduct={editProduct}
-          category={selectedProduct.category}  // Passing 'women' instead of 'womens'
+          category={selectedProduct.category}
+        />
+      )}
+
+      {isDescriptionModalOpen && selectedProduct && (
+        <EditDescription
+          onClose={closeDescriptionModal}
+          product={selectedProduct.product}
+          index={selectedProduct.index}
+          editDescription={editDescription}
+          category={selectedProduct.category}
         />
       )}
 

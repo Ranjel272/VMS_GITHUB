@@ -72,46 +72,6 @@ const EditSizeModal = ({ selectedSize, productName, productDescription, unitPric
             />
           </div>
 
-          <div className="editsize-form-group">
-            <label>Threshold</label>
-            <input
-              type="number"
-              name="threshold"
-              value={formData.threshold}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="editsize-form-group">
-            <label>Reorder Level</label>
-            <input
-              type="number"
-              name="reorderLevel"
-              value={formData.reorderLevel}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="editsize-form-group">
-            <label>Maximum Quantity</label>
-            <input
-              type="number"
-              name="maxQuantity"
-              value={formData.maxQuantity}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="editsize-form-group">
-            <label>Minimum Stock Level</label>
-            <input
-              type="number"
-              name="minQuantity"
-              value={formData.minQuantity}
-              onChange={handleChange}
-            />
-          </div>
-
           <button
             type="button"
             className="editsize-save-btn"

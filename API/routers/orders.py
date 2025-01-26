@@ -328,8 +328,70 @@ async def send_to_ims_api_with_retries(url, payload, retries=3, delay=2):
         await asyncio.sleep(delay)
     raise HTTPException(status_code=500, detail="Failed to send data to IMS after multiple attempts.")
 
-@router.put('/vms/orders/{orderID}/ship')
-async def ship_order(orderID: int):
+@router.get("/toship/orders", response_model=List[OrderSummary])
+async def get_order_details():
+    conn = None
+    try:
+        # Establish database connection
+        conn = await database.get_db_connection()
+        cursor = await conn.cursor()
+
+        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        query = """
+        SELECT 
+            po.orderID,  -- Include orderID
+            p.productName, 
+            p.size, 
+            p.category, 
+            pod.orderQuantity AS quantity,
+            (p.unitPrice * pod.orderQuantity) AS totalPrice,
+            c.customerName,
+            c.customerAddress AS warehouseAddress
+        FROM 
+            purchaseOrderDetails pod
+        JOIN 
+            Products p ON pod.productID = p.productID
+        JOIN 
+            purchaseOrders po ON pod.orderID = po.orderID
+        JOIN 
+            Customers c ON po.customerID = c.customerID
+        
+        WHERE
+            po.orderStatus = 'To Ship'  -- Filter orders by 'Pending' status
+        """
+        await cursor.execute(query)
+        results = await cursor.fetchall()
+
+        # Format results into response model
+        order_summaries = [
+            OrderSummary(
+                orderID=row[0],  # Map orderID
+                productName=row[1],
+                size=row[2],
+                category=row[3],
+                quantity=row[4],
+                totalPrice=row[5],
+                customerName=row[6],
+                warehouseAddress=row[7]
+            )
+            for row in results
+        ]
+
+        # Close cursor and connection
+        await cursor.close()
+        await conn.close()
+
+        return order_summaries
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching order details: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()
+
+@router.put('/vms/orders/{orderID}/Delivered')
+async def delivered_order(orderID: int):
     conn = None
     try:
         conn = await database.get_db_connection()
@@ -361,7 +423,6 @@ async def ship_order(orderID: int):
         variant_data = []
         for product in products:
             product_id, order_quantity = product
-
             order_quantity = int(order_quantity)
 
             # Fetch only the required number of product variants (orderQuantity)
@@ -370,12 +431,12 @@ async def ship_order(orderID: int):
                    FROM productVariants pv
                    JOIN products p ON pv.productID = p.productID
                    WHERE pv.productID = ? AND pv.isAvailable = 1
-                   ORDER BY pv.variantID ASC''',  
+                   ORDER BY pv.variantID ASC''',
                 (order_quantity, product_id)
             )
             variants = await cursor.fetchall()
             logging.info(f"Available variants for productID {product_id}: {len(variants)}")
-            
+
             if len(variants) < order_quantity:
                 raise HTTPException(
                     status_code=400,
@@ -390,28 +451,41 @@ async def ship_order(orderID: int):
                 "productName": v[2],
                 "category": v[3],
                 "size": v[4]
-            } for v in variants[:order_quantity]])  
-            
-        # Send the prepared variants to IMS
-        ims_api_url = 'http://127.0.0.1:8000/receive-orders/ims/variants/receive'
-        payload = {
-            'orderID': orderID,
-            'orderStatus': 'Shipped',  
-            'variants': variant_data
-        }
-        logging.info(f"Sending payload to IMS: {payload}")
-        ims_response = await send_to_ims_api_with_retries(ims_api_url, payload)
+            } for v in variants[:order_quantity]])
 
-        if ims_response.get('status') != 'success':
-            raise HTTPException(status_code=500, detail="Failed to send order data to IMS.")
+        # Deduct the currentStock for each product based on order quantity
+        for product in products:
+            product_id, order_quantity = product
 
-        # Update order status to 'Shipped'
-        await cursor.execute(
-            '''UPDATE purchaseOrders
-               SET orderStatus = 'Shipped', statusDate = ?
-               WHERE orderID = ?''',
-            (datetime.utcnow(), orderID)
-        )
+            # Fetch the current stock
+            await cursor.execute(
+                '''SELECT currentStock
+                   FROM products
+                   WHERE productID = ?''',
+                (product_id,)
+            )
+            current_stock_row = await cursor.fetchone()
+            if not current_stock_row:
+                raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found.")
+
+            current_stock = int(current_stock_row[0])
+
+            # Check if stock is sufficient
+            if current_stock < order_quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Not enough stock for productID {product_id}. "
+                           f"Required: {order_quantity}, Available: {current_stock}"
+                )
+
+            # Deduct stock
+            new_stock = current_stock - order_quantity
+            await cursor.execute(
+                '''UPDATE products
+                   SET currentStock = ?
+                   WHERE productID = ?''',
+                (new_stock, product_id)
+            )
 
         # Mark selected variants as unavailable
         await cursor.executemany(
@@ -421,18 +495,39 @@ async def ship_order(orderID: int):
             [(variant['barcode'],) for variant in variant_data]
         )
 
+        # Send the prepared variants to IMS
+        ims_api_url = 'http://127.0.0.1:8000/receive-orders/ims/variants/receive'
+        payload = {
+            'orderID': orderID,
+            'orderStatus': 'Delivered',
+            'variants': variant_data
+        }
+        logging.info(f"Sending payload to IMS: {payload}")
+        ims_response = await send_to_ims_api_with_retries(ims_api_url, payload)
+
+        if ims_response.get('status') != 'success':
+            raise HTTPException(status_code=500, detail="Failed to send order data to IMS.")
+
+        # Update order status to 'Delivered'
+        await cursor.execute(
+            '''UPDATE purchaseOrders
+               SET orderStatus = 'Delivered', statusDate = ?
+               WHERE orderID = ?''',
+            (datetime.utcnow(), orderID)
+        )
+
         # Commit the changes
         await conn.commit()
 
         logging.info(f"Sending payload to IMS: {json.dumps(payload, indent=4)}")
         return {
-            'message': f"Order {orderID} marked as 'Shipped' and variants sent to IMS successfully.",
+            'message': f"Order {orderID} marked as 'Delivered' and variants sent to IMS successfully.",
             'imsResponse': ims_response
         }
 
     except Exception as e:
-        logging.error(f"Error shipping order: {e}")
-        raise HTTPException(status_code=500, detail=f"Error shipping order: {e}")
+        logging.error(f"Error delivering order: {e}")
+        raise HTTPException(status_code=500, detail=f"Error delivering order: {e}")
     finally:
         if conn:
             await conn.close()
@@ -455,44 +550,129 @@ async def send_to_ims_api_with_retries(url, payload, retries=3, delay=2):
         await asyncio.sleep(delay)
     raise HTTPException(status_code=500, detail="Failed to send data to IMS after multiple attempts.")
 
-@router.get('/vms/orders/shipped')
-async def get_shipped_orders():
+@router.get('/vms/orders/delivered')
+async def get_order_details():
     conn = None
     try:
+        # Establish database connection
         conn = await database.get_db_connection()
         cursor = await conn.cursor()
 
-        # fetch all orders with status "Shipped"
-        await cursor.execute(
-            '''
-            select orderID, orderDate, statusDate, customerID
-            from purchaseOrders 
-            where orderStatus = "Shipped"'''
-        ),
-        orders = await cursor.fetchall()
-
-        # if no orders found, return an empty list
-        if not orders:
-            return {"message": "No shipped orders found", "orders": []}
+        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        query = """
+        SELECT 
+            po.orderID,  -- Include orderID
+            p.productName, 
+            p.size, 
+            p.category, 
+            pod.orderQuantity AS quantity,
+            (p.unitPrice * pod.orderQuantity) AS totalPrice,
+            c.customerName,
+            c.customerAddress AS warehouseAddress
+        FROM 
+            purchaseOrderDetails pod
+        JOIN 
+            Products p ON pod.productID = p.productID
+        JOIN 
+            purchaseOrders po ON pod.orderID = po.orderID
+        JOIN 
+            Customers c ON po.customerID = c.customerID
         
-        #format the results
-        result = [
-            {
-                "orderID": order[0],
-                "orderDate": order[1],
-                "statusDate": order[2],
-                "customerID": order[3]
-            }
-            for order in orders
+        WHERE
+            po.orderStatus = 'Delivered'  -- Filter orders by 'Pending' status
+        """
+        await cursor.execute(query)
+        results = await cursor.fetchall()
+
+        # Format results into response model
+        order_summaries = [
+            OrderSummary(
+                orderID=row[0],  # Map orderID
+                productName=row[1],
+                size=row[2],
+                category=row[3],
+                quantity=row[4],
+                totalPrice=row[5],
+                customerName=row[6],
+                warehouseAddress=row[7]
+            )
+            for row in results
         ]
 
-        return {"message": "Shipped orders retrieved successfully", "orders": result}
-    
+        # Close cursor and connection
+        await cursor.close()
+        await conn.close()
+
+        return order_summaries
+
     except Exception as e:
-        logging.error(f"Error fetching shipped orders: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch shipped orders")
-    finally: 
-        if conn: 
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching order details: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()
+
+#Completed
+@router.get('/vms/orders/Completed')
+async def get_order_details():
+    conn = None
+    try:
+        # Establish database connection
+        conn = await database.get_db_connection()
+        cursor = await conn.cursor()
+
+        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        query = """
+        SELECT 
+            po.orderID,  -- Include orderID
+            p.productName, 
+            p.size, 
+            p.category, 
+            pod.orderQuantity AS quantity,
+            (p.unitPrice * pod.orderQuantity) AS totalPrice,
+            c.customerName,
+            c.customerAddress AS warehouseAddress
+        FROM 
+            purchaseOrderDetails pod
+        JOIN 
+            Products p ON pod.productID = p.productID
+        JOIN 
+            purchaseOrders po ON pod.orderID = po.orderID
+        JOIN 
+            Customers c ON po.customerID = c.customerID
+        
+        WHERE
+            po.orderStatus = 'Received'  
+        """
+        await cursor.execute(query)
+        results = await cursor.fetchall()
+
+        # Format results into response model
+        order_summaries = [
+            OrderSummary(
+                orderID=row[0],  # Map orderID
+                productName=row[1],
+                size=row[2],
+                category=row[3],
+                quantity=row[4],
+                totalPrice=row[5],
+                customerName=row[6],
+                warehouseAddress=row[7]
+            )
+            for row in results
+        ]
+
+        # Close cursor and connection
+        await cursor.close()
+        await conn.close()
+
+        return order_summaries
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching order details: {str(e)}")
+    finally:
+        if conn:
             await conn.close()
 
 @router.post('/vms/orders/update-status')

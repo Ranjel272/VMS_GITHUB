@@ -1,5 +1,5 @@
 /* Modal Overlay */
-.modal-overlay {
+.EditP-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -50,8 +50,12 @@ h2 {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border-left: 6px solid #fe3835;
+  width: 20px;  /* Fixed width for the container */
+  height: 20px; /* Fixed height for the container */
+  overflow: hidden; /* Prevent overflow in case of excessive content */
 }
 
+/* Size Button */
 .size-btn {
   background-color: #fe3835;
   color: white;
@@ -60,7 +64,7 @@ h2 {
   border-radius: 10px;
   font-size: 1.2rem;
   cursor: pointer;
-  width: 100%;
+  width: 100%;  /* Make the button take up full width of the container */
   margin-bottom: 15px;
   transition: background-color 0.3s ease;
 }
@@ -146,17 +150,6 @@ h2 {
   background-color: #f40b37;
 }
 
-/* Threshold Labels */
-.threshold-label {
-  color: #333;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.threshold-value {
-  font-size: 1.1rem;
-  color: #f40b37;
-}
 .edit-product-form {
   position: fixed;
   top: 50%;
@@ -218,6 +211,9 @@ h2 {
   cursor: pointer;
   color: #fff;
   font-size: 14px;
+  width: 50px; /* Fixed width */
+  height: 40px; /* Fixed height */
+  text-align: center; /* Centers the text inside the button */
 }
 
 .size-button:hover {
@@ -254,11 +250,7 @@ h2 {
   margin-bottom: 8px; /* Add margin to paragraphs for spacing */
 }
 
-.spacing {
-  margin: 30px 0; /* Add space between sections */
-}
-
-.close-button {
+.Editp-close-button {
   background: none;
   width: 80px;
   border: none;
@@ -267,7 +259,13 @@ h2 {
   right: 10px;
   font-size: 20px;
   cursor: pointer;
+  color: white; /* Set*/
 }
+
+.spacing {
+  margin: 30px 0; /* Add space between sections */
+}
+
 
 .photo-placeholder {
   width: 300px;
