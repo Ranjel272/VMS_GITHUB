@@ -37,7 +37,7 @@ class OrderSummary(BaseModel):
     totalPrice: float
     customerName: str
     warehouseAddress: str
-    #image_path: str
+    image_path: str
 
 # Create a router for order details
 router = APIRouter()
@@ -192,7 +192,7 @@ async def get_order_details():
         conn = await database.get_db_connection()
         cursor = await conn.cursor()
 
-        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        # Query to fetch required fields, including TotalPrice, CustomerName, WarehouseAddress, and ImagePath
         query = """
         SELECT 
             po.orderID,  -- Include orderID
@@ -202,7 +202,8 @@ async def get_order_details():
             pod.orderQuantity AS quantity,
             (p.unitPrice * pod.orderQuantity) AS totalPrice,
             c.customerName,
-            c.customerAddress AS warehouseAddress
+            c.customerAddress AS warehouseAddress,
+            p.image_path  -- Include imagePath from the Products table
         FROM 
             purchaseOrderDetails pod
         JOIN 
@@ -211,7 +212,6 @@ async def get_order_details():
             purchaseOrders po ON pod.orderID = po.orderID
         JOIN 
             Customers c ON po.customerID = c.customerID
-        
         WHERE
             po.orderStatus = 'Pending'  -- Filter orders by 'Pending' status
         """
@@ -228,7 +228,8 @@ async def get_order_details():
                 quantity=row[4],
                 totalPrice=row[5],
                 customerName=row[6],
-                warehouseAddress=row[7]
+                warehouseAddress=row[7],
+                image_path=row[8]  # Map imagePath
             )
             for row in results
         ]

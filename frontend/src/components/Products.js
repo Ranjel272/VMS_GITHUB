@@ -18,8 +18,8 @@ const Products = () => {
   });
 
   useEffect(() => {
-    console.log("Fetching women's products...");
     fetchWomenProducts();
+  
   }, []);
 
   const fetchWomenProducts = async () => {
@@ -254,17 +254,27 @@ const Products = () => {
       );
     });
   };
-
+  const getTotalUniqueProducts = () => {
+    const allProducts = [
+      ...products.women,
+      ...products.men,
+      ...products.girls,
+      ...products.boys,
+    ];
+    const uniqueProducts = new Set(allProducts.map((product) => product.productName));
+    return uniqueProducts.size;
+  };
   return (
+    
     <div className="products-container">
       <div className="dashboard">
-        {/* Total Number of Products */}
+        {/* Total Number of Unique Products */}
         <div className="category-box">
-          <h2>{products.women.length + products.men.length + products.girls.length + products.boys.length}</h2>
-          <p>Total Products</p>
+          <h2>{getTotalUniqueProducts()}</h2>
+          <p>Unique Products</p>
         </div>
 
-        {/* Categories like Women, Men, Girls, Boys */}
+        {/* Total Products per Category */}
         {["women", "men", "girls", "boys"].map((category) => (
           <div key={category} className="category-box">
             <h2>{products[category].length}</h2>

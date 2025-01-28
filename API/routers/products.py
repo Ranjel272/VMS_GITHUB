@@ -314,6 +314,8 @@ async def get_size(
                 AND unitPrice = ? 
                 AND category = ?
                 AND (productDescription = ? OR ? IS NULL)
+                AND currentStock >= 1  
+
             ''', (productName, unitPrice, category, productDescription, productDescription))
             
             products = await cursor.fetchall()
@@ -454,6 +456,51 @@ async def add_product(product: ADDSIZE):
     finally:
         await conn.close()
 
+#delete a size
+
+@router.patch('/products/sizes/soft-delete')
+async def soft_delete_size(
+    productName: str, 
+    unitPrice: float, 
+    category: str, 
+    size: str
+):
+    conn = await database.get_db_connection()
+    try:
+        async with conn.cursor() as cursor:
+            # Check if the size exists and is currently active
+            await cursor.execute('''
+                SELECT size 
+                FROM Products 
+                WHERE productName = ? 
+                AND unitPrice = ? 
+                AND category = ? 
+                AND size = ? 
+                AND isActive = 1
+            ''', (productName, unitPrice, category, size))
+            
+            product = await cursor.fetchone()
+            
+            if not product:
+                raise HTTPException(status_code=404, detail="Product size not found or already inactive")
+            
+            # Perform the soft delete by setting isActive to 0
+            await cursor.execute('''
+                UPDATE Products 
+                SET isActive = 0 
+                WHERE productName = ? 
+                AND unitPrice = ? 
+                AND category = ? 
+                AND size = ?
+            ''', (productName, unitPrice, category, size))
+            
+            await conn.commit()
+            return {"detail": "Product size soft deleted successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await conn.close()
 
 
 

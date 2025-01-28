@@ -28,6 +28,7 @@ class OrderSummary(BaseModel):
     totalPrice: float
     customerName: str
     warehouseAddress: str
+    image_path: str
 
 # helper function to send order to ims
 async def send_to_ims_api(ims_api_url: str, payload: dict):
@@ -204,7 +205,7 @@ async def get_order_details():
         conn = await database.get_db_connection()
         cursor = await conn.cursor()
 
-        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        # Query to fetch required fields, including TotalPrice, CustomerName, WarehouseAddress, and ImagePath
         query = """
         SELECT 
             po.orderID,  -- Include orderID
@@ -214,7 +215,8 @@ async def get_order_details():
             pod.orderQuantity AS quantity,
             (p.unitPrice * pod.orderQuantity) AS totalPrice,
             c.customerName,
-            c.customerAddress AS warehouseAddress
+            c.customerAddress AS warehouseAddress,
+            p.image_path  -- Include imagePath from the Products table
         FROM 
             purchaseOrderDetails pod
         JOIN 
@@ -223,9 +225,8 @@ async def get_order_details():
             purchaseOrders po ON pod.orderID = po.orderID
         JOIN 
             Customers c ON po.customerID = c.customerID
-        
         WHERE
-            po.orderStatus = 'Confirmed'  -- Filter orders by 'Pending' status
+            po.orderStatus = 'Confirmed'  
         """
         await cursor.execute(query)
         results = await cursor.fetchall()
@@ -240,7 +241,8 @@ async def get_order_details():
                 quantity=row[4],
                 totalPrice=row[5],
                 customerName=row[6],
-                warehouseAddress=row[7]
+                warehouseAddress=row[7],
+                image_path=row[8]  # Map imagePath
             )
             for row in results
         ]
@@ -336,7 +338,7 @@ async def get_order_details():
         conn = await database.get_db_connection()
         cursor = await conn.cursor()
 
-        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        # Query to fetch required fields, including TotalPrice, CustomerName, WarehouseAddress, and ImagePath
         query = """
         SELECT 
             po.orderID,  -- Include orderID
@@ -346,7 +348,8 @@ async def get_order_details():
             pod.orderQuantity AS quantity,
             (p.unitPrice * pod.orderQuantity) AS totalPrice,
             c.customerName,
-            c.customerAddress AS warehouseAddress
+            c.customerAddress AS warehouseAddress,
+            p.image_path  -- Include imagePath from the Products table
         FROM 
             purchaseOrderDetails pod
         JOIN 
@@ -355,9 +358,8 @@ async def get_order_details():
             purchaseOrders po ON pod.orderID = po.orderID
         JOIN 
             Customers c ON po.customerID = c.customerID
-        
         WHERE
-            po.orderStatus = 'To Ship'  -- Filter orders by 'Pending' status
+            po.orderStatus = 'To Ship'  
         """
         await cursor.execute(query)
         results = await cursor.fetchall()
@@ -372,7 +374,8 @@ async def get_order_details():
                 quantity=row[4],
                 totalPrice=row[5],
                 customerName=row[6],
-                warehouseAddress=row[7]
+                warehouseAddress=row[7],
+                image_path=row[8]  # Map imagePath
             )
             for row in results
         ]
@@ -558,7 +561,7 @@ async def get_order_details():
         conn = await database.get_db_connection()
         cursor = await conn.cursor()
 
-        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        # Query to fetch required fields, including TotalPrice, CustomerName, WarehouseAddress, and ImagePath
         query = """
         SELECT 
             po.orderID,  -- Include orderID
@@ -568,7 +571,8 @@ async def get_order_details():
             pod.orderQuantity AS quantity,
             (p.unitPrice * pod.orderQuantity) AS totalPrice,
             c.customerName,
-            c.customerAddress AS warehouseAddress
+            c.customerAddress AS warehouseAddress,
+            p.image_path  
         FROM 
             purchaseOrderDetails pod
         JOIN 
@@ -577,9 +581,8 @@ async def get_order_details():
             purchaseOrders po ON pod.orderID = po.orderID
         JOIN 
             Customers c ON po.customerID = c.customerID
-        
         WHERE
-            po.orderStatus = 'Delivered'  -- Filter orders by 'Pending' status
+            po.orderStatus = 'Delivered'  
         """
         await cursor.execute(query)
         results = await cursor.fetchall()
@@ -594,7 +597,8 @@ async def get_order_details():
                 quantity=row[4],
                 totalPrice=row[5],
                 customerName=row[6],
-                warehouseAddress=row[7]
+                warehouseAddress=row[7],
+                image_path=row[8]  # Map imagePath
             )
             for row in results
         ]
@@ -621,7 +625,7 @@ async def get_order_details():
         conn = await database.get_db_connection()
         cursor = await conn.cursor()
 
-        # Query to fetch required fields, including TotalPrice, CustomerName, and WarehouseAddress
+        # Query to fetch required fields, including TotalPrice, CustomerName, WarehouseAddress, and ImagePath
         query = """
         SELECT 
             po.orderID,  -- Include orderID
@@ -631,7 +635,8 @@ async def get_order_details():
             pod.orderQuantity AS quantity,
             (p.unitPrice * pod.orderQuantity) AS totalPrice,
             c.customerName,
-            c.customerAddress AS warehouseAddress
+            c.customerAddress AS warehouseAddress,
+            p.image_path  -- Include imagePath from the Products table
         FROM 
             purchaseOrderDetails pod
         JOIN 
@@ -640,7 +645,6 @@ async def get_order_details():
             purchaseOrders po ON pod.orderID = po.orderID
         JOIN 
             Customers c ON po.customerID = c.customerID
-        
         WHERE
             po.orderStatus = 'Received'  
         """
@@ -657,7 +661,8 @@ async def get_order_details():
                 quantity=row[4],
                 totalPrice=row[5],
                 customerName=row[6],
-                warehouseAddress=row[7]
+                warehouseAddress=row[7],
+                image_path=row[8]  # Map imagePath
             )
             for row in results
         ]

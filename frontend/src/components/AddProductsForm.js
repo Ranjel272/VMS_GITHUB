@@ -43,7 +43,7 @@ const AddProductsForm = ({ onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     // Validate required fields
     if (
       !formData.productName ||
@@ -57,10 +57,10 @@ const AddProductsForm = ({ onClose }) => {
       setShowErrorModal(true); // Show error modal if any field is missing
       return;
     }
-
+  
     try {
       setIsSubmitting(true);
-
+  
       // Prepare JSON payload
       const payload = {
         productName: formData.productName,
@@ -71,7 +71,7 @@ const AddProductsForm = ({ onClose }) => {
         quantity: parseInt(formData.quantity), // Ensure it's an integer
         image: formData.image_path, // Base64 string
       };
-
+  
       // Send POST request to the API
       const response = await axios.post(
         "http://127.0.0.1:8001/products/products",
@@ -82,9 +82,12 @@ const AddProductsForm = ({ onClose }) => {
           },
         }
       );
-
+  
       console.log("Product added:", response.data); // Log successful response
-      onClose(); // Close the form
+  
+      // Pass the new product back to the Products component
+      onClose(response.data); // Pass the newly added product to the parent
+  
     } catch (error) {
       console.error("Error adding product:", error);
       alert("Failed to add product. Please try again.");
@@ -92,6 +95,7 @@ const AddProductsForm = ({ onClose }) => {
       setIsSubmitting(false);
     }
   };
+  
 
   const closeErrorModal = () => {
     setShowErrorModal(false);

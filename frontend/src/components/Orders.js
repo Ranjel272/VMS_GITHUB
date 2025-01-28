@@ -124,7 +124,10 @@ const Orders = () => {
         const response = await fetch("http://localhost:8001/order-details/order-details/orders");
         if (!response.ok) throw new Error("Failed to fetch orders");
         const data = await response.json();
-
+  
+        // Debugging: Log the entire API response to check if image_path is available
+        console.log("API Response:", data);
+  
         const formattedData = data.map((item) => ({
           id: item.orderID,
           productName: item.productName,
@@ -134,7 +137,7 @@ const Orders = () => {
           customerName: item.customerName,
           address: item.warehouseAddress,
           total: `$${item.totalPrice.toFixed(2)}`, // Format price
-          image: "https://via.placeholder.com/150", // Placeholder image
+          image: item.image_path ? `http://localhost:8001/${item.image_path.replace("\\", "/")}` : "http://127.0.0.1:8001", // Make sure it’s a valid URL
         }));
         setPendingOrders(formattedData);
       } catch (error) {
@@ -143,6 +146,7 @@ const Orders = () => {
     };
     fetchOrders();
   }, []);
+  
   
 //Confirmed Orders Display on To Ship
   useEffect(() => {
@@ -161,7 +165,7 @@ const Orders = () => {
           total: `$${item.totalPrice.toFixed(2)}`, // Format price
           customerName: item.customerName,
           address: item.warehouseAddress,
-          image: "https://via.placeholder.com/150", // Placeholder image
+          image: item.image_path ? `http://localhost:8001/${item.image_path.replace("\\", "/")}` : "http://127.0.0.1:8001", // Make sure it’s a valid URL
         }));
 
         setToShipOrders(formattedToShipOrders);
@@ -188,7 +192,7 @@ const Orders = () => {
           total: `$${item.totalPrice.toFixed(2)}`, // Format price
           customerName: item.customerName,
           address: item.warehouseAddress,
-          image: "https://via.placeholder.com/150", // Placeholder image
+          image: item.image_path ? `http://localhost:8001/${item.image_path.replace("\\", "/")}` : "http://127.0.0.1:8001", // Make sure it’s a valid URL
         }));
   
         setShippedOrders(formattedShippedOrders);
@@ -215,7 +219,7 @@ const Orders = () => {
           total: `$${item.totalPrice.toFixed(2)}`, // Format price
           customerName: item.customerName,
           address: item.warehouseAddress,
-          image: "https://via.placeholder.com/150", // Placeholder image
+          image: item.image_path ? `http://localhost:8001/${item.image_path.replace("\\", "/")}` : "http://127.0.0.1:8001", // Make sure it’s a valid URL
         }));
   
         setDeliveredOrders(formattedDeliveredOrders);
@@ -239,10 +243,10 @@ const Orders = () => {
           size: item.size,
           category: item.category,
           quantity: item.quantity,
-          total: `$${item.totalPrice.toFixed(2)}`, // Format price
+          total: `$${item.totalPrice.toFixed(2)}`, 
           customerName: item.customerName,
           address: item.warehouseAddress,
-          image: "https://via.placeholder.com/150", // Placeholder image
+          image: item.image_path ? `http://localhost:8001/${item.image_path.replace("\\", "/")}` : "http://127.0.0.1:8001", // Make sure it’s a valid URL
         }));
   
         setCompletedOrders(formattedcompletedOrders);
@@ -307,33 +311,46 @@ const Orders = () => {
       </div>
 
       <div className="orders-lists">
-        {/* Pending Orders */}
-        <div className="orders-section">
-          <h3>Pending Orders</h3>
-          <div className="scrollable-list">
-            {pendingOrders.map((order) => (
-              <div className="order-item" key={order.id}>
-                <div className="order-photo">
-                  <img src={order.image} alt={order.productName} className="product-image" />
-                </div>
-                <div className="order-details">
-                  <h4>{order.productName}</h4>
-                  <p>Category: {order.category}</p>
-                  <p>Quantity: {order.quantity}</p>
-                  <p>Price: {order.total}</p>
-                </div>
-                <div className="order-actions">
-                  <button className="approve-btn" onClick={() => approveOrder(order)}>
-                    Approve
-                  </button>
-                  <button className="reject-btn" onClick={() => rejectOrder(order)}>
-                    Reject
-                  </button>
-                </div>
-              </div>
-            ))}
+  {/* Pending Orders */}
+  <div className="orders-section">
+    <h3>Pending Orders</h3>
+    <div className="scrollable-list">
+      {pendingOrders.map((order) => {
+        // Debugging: Log the image URL to the console
+        console.log("Order Image Path:", order.image);  // Log the image path here
+
+        return (
+          <div className="order-item" key={order.id}>
+            <div className="order-photo">
+              {/* Display product image */}
+              <img
+                src={order.image}
+                alt={order.productName}
+                className="product-image"
+                style={{ width: "150px", height: "150px", objectFit: "cover" }} // Optional styling
+              />
+            </div>
+            <div className="order-details">
+              <h4>{order.productName}</h4>
+              <p>Category: {order.category}</p>
+              <p>Quantity: {order.quantity}</p>
+              <p>Price: {order.total}</p>
+            </div>
+            <div className="order-actions">
+              <button className="approve-btn" onClick={() => approveOrder(order)}>
+                Approve
+              </button>
+              <button className="reject-btn" onClick={() => rejectOrder(order)}>
+                Reject
+              </button>
+            </div>
           </div>
-        </div>
+        );
+})}
+    </div>
+  </div>
+
+
 
         {/* To Ship Orders */}
         <div className="orders-section">
