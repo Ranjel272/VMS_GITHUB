@@ -104,6 +104,13 @@ class ADDSIZE(BaseModel):
     image_path: str 
 
 
+class Product(BaseModel):
+    productName: str
+    productDescription: str
+    category: str
+    unitPrice: float
+    
+
 @router.post('/products')
 async def add_product(product: Product):
     conn = await database.get_db_connection()
@@ -315,6 +322,7 @@ async def get_size(
                 AND category = ?
                 AND (productDescription = ? OR ? IS NULL)
                 AND currentStock >= 1  
+                AND isActive = 1
 
             ''', (productName, unitPrice, category, productDescription, productDescription))
             
@@ -457,7 +465,6 @@ async def add_product(product: ADDSIZE):
         await conn.close()
 
 #delete a size
-
 @router.patch('/products/sizes/soft-delete')
 async def soft_delete_size(
     productName: str, 
@@ -647,35 +654,40 @@ where p.isActive = 1 and pv.isAvailable = 1;''')
 #         await conn.close()
 
 
-# update a product
-@router.put('/products/{product_id}')
-async def update_product(product_id: int, product: Product):
+@router.put('/products')
+async def update_products(productUpdate: Product, image_path: str):
     conn = await database.get_db_connection()
     try:
         async with conn.cursor() as cursor:
+            # Update all products with the same productName, productDescription, unitPrice, and category
             await cursor.execute(
-            '''
-update Products
-set productName = ?, productDescription = ?, size = ?, color = ?, category = ?, unitPrice = ?, 
-minStockLevel = ?, maxStockLevel = ?
-where productID = ? ''',
-            product.productName,
-            product.productDescription,
-            product.size,
-            product.color,
-            product.category,
-            product.unitPrice,
-            product.minStockLevel,
-            product.maxStockLevel,
-            product_id,
-        )
+                '''
+                UPDATE Products
+                SET productName = ?, productDescription = ?, category = ?, 
+                    unitPrice = ?, image_path = ?
+                WHERE productName = ? AND productDescription = ? AND unitPrice = ? AND category = ?
+                ''',
+                product.productName,
+                product.productDescription,
+                product.category,
+                product.unitPrice,
+                image_path,  # Update the image path
+                product.productName,
+                product.productDescription,
+                product.unitPrice,
+                product.category
+            )
             await conn.commit()
-            return{'message': 'product updated successfully!'}
+
+            return {'message': 'Products updated successfully!'}
+
     except Exception as e:
         await conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
     finally:
         await conn.close()
+
 
 @router.delete('/products/{product_id}')
 async def delete_product(product_id: int):

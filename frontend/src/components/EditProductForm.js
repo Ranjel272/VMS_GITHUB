@@ -119,12 +119,42 @@ const EditProductForm = ({ product, category, onClose }) => {
     }
   };
 
-  const handleDeleteSize = (sizeToDelete) => {
+  const handleDeleteSize = async (sizeToDelete) => {
+    if (!sizeToDelete) {
+      console.error("No size selected for deletion.");
+      return;
+    }
+  
     console.log("[Handle Delete Size] Deleting Size:", sizeToDelete);
-    const updatedSize = size.filter((sizeItem) => sizeItem.size !== sizeToDelete.size);
-    setSize(updatedSize);
-    setSelectedSizeDetails(null);
+  
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8001/products/products/sizes/soft-delete?productName=${encodeURIComponent(productData.productName)}&unitPrice=${encodeURIComponent(productData.unitPrice)}&category=${encodeURIComponent(productData.category)}&size=${encodeURIComponent(sizeToDelete.size)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+  
+      if (response.ok) {
+        console.log("[Handle Delete Size] Successfully deleted size:", sizeToDelete);
+        // Update the local state to reflect the deletion
+        const updatedSize = size.filter((sizeItem) => sizeItem.size !== sizeToDelete.size);
+        setSize(updatedSize);
+        setSelectedSizeDetails(null);
+      } else {
+        const errorData = await response.json();
+        console.error("[Handle Delete Size] Failed to delete size:", errorData.detail || "Unknown error");
+        alert(`Failed to delete size: ${errorData.detail || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("[Handle Delete Size] Error occurred:", error);
+      alert("An error occurred while attempting to delete the size. Please try again.");
+    }
   };
+  
 
   const handleSaveSize = (updatedSizeDetails) => {
     console.log("[Handle Save Size] Saving Updated Size Details:", updatedSizeDetails);

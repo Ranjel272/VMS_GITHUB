@@ -33,7 +33,7 @@ const Products = () => {
       setProducts((prevState) => ({
         ...prevState,
         women: womenProducts.map((product) => {
-          const imageURL = product.image_path || "placeholder.png";
+          const imageURL = product.image_path;
           return {
             ...product,
             imageURL: `http://127.0.0.1:8001/${imageURL}`,
@@ -60,7 +60,7 @@ const Products = () => {
       setProducts((prevState) => ({
         ...prevState,
         men: menProducts.map((product) => {
-          const imageURL = product.image_path || "placeholder.png";
+          const imageURL = product.image_path;
           return {
             ...product,
             imageURL: `http://127.0.0.1:8001/${imageURL}`,
@@ -85,7 +85,7 @@ const Products = () => {
       setProducts((prevState) => ({
         ...prevState,
         girls: girlsProducts.map((product) => {
-          const imageURL = product.image_path || "placeholder.png";
+          const imageURL = product.image_path;
           return {
             ...product,
             imageURL: `http://127.0.0.1:8001/${imageURL}`,
@@ -110,7 +110,7 @@ const Products = () => {
       setProducts((prevState) => ({
         ...prevState,
         boys: boysProducts.map((product) => {
-          const imageURL = product.image_path || "placeholder.png";
+          const imageURL = product.image_path;
           return {
             ...product,
             imageURL: `http://127.0.0.1:8001/${imageURL}`,
@@ -271,15 +271,20 @@ const Products = () => {
         {/* Total Number of Unique Products */}
         <div className="category-box">
           <h2>{getTotalUniqueProducts()}</h2>
-          <p>Unique Products</p>
+          <p>Total Products</p>
         </div>
 
         {/* Total Products per Category */}
         {["women", "men", "girls", "boys"].map((category) => (
-          <div key={category} className="category-box">
-            <h2>{products[category].length}</h2>
-            <p>{category.charAt(0).toUpperCase() + category.slice(1)}</p>
-          </div>
+           <div key={category} className="category-box">
+           {/* Count unique products within each category, considering product name and size */}
+           <h2>
+             {new Set(
+               products[category].map((product) => `${product.productName}-${product.size}`)
+             ).size}
+           </h2>
+           <p>{category.charAt(0).toUpperCase() + category.slice(1)}</p>
+         </div>
         ))}
       </div>
 
