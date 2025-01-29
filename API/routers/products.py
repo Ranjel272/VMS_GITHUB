@@ -104,11 +104,11 @@ class ADDSIZE(BaseModel):
     image_path: str 
 
 
-class Product(BaseModel):
-    productName: str
-    productDescription: str
-    category: str
-    unitPrice: float
+# class Product(BaseModel):
+#     productName: str
+#     productDescription: str
+#     category: str
+#     unitPrice: float
     
 
 @router.post('/products')
@@ -388,48 +388,56 @@ async def add_product(product: ADDSIZE):
     conn = await database.get_db_connection()
     cursor = await conn.cursor()
     try:
-        # Step 1: Check if the product with the same name, description, and size already exists
-        await cursor.execute('''SELECT 1
-                                 FROM Products
-                                 WHERE productName = ? 
-                                       AND productDescription = ? 
-                                       AND size = ? 
-                                       AND isActive = 1''',
-                             product.productName,
-                             product.productDescription,
-                             product.size)
-        
-        existing_product = await cursor.fetchone()
+        # Step 1: Retrieve the existing image_path based on product name and description
+        await cursor.execute('''SELECT image_path 
+                                FROM Products 
+                                WHERE productName = ? 
+                                      AND productDescription = ? 
+                                      AND isActive = 1''',
+                             (product.productName, product.productDescription))
 
+        existing_product = await cursor.fetchone()
+        
         if existing_product:
+            image_path = existing_product[0]  # Use the existing image path
+        else:
+            raise HTTPException(status_code=404, detail="Original product not found. Cannot add new size.")
+
+        # Step 2: Check if the same product (name, description, and size) already exists
+        await cursor.execute('''SELECT 1
+                                FROM Products
+                                WHERE productName = ? 
+                                      AND productDescription = ? 
+                                      AND size = ? 
+                                      AND isActive = 1''',
+                             (product.productName, product.productDescription, product.size))
+
+        existing_size = await cursor.fetchone()
+
+        if existing_size:
             raise HTTPException(status_code=400, 
                                 detail=f"A product with name '{product.productName}', description '{product.productDescription}', "
                                        f"and size '{product.size}' already exists and is active.")
-        
-        # Step 2: Save Base64 image to file (if applicable)
-        image_path = None
-        if product.image_path:
-            image_path = save_base64_image(product.image_path)
 
-        # Step 3: Insert the new product, using 'quantity' for the current stock
+        # Step 3: Insert the new product size, keeping the existing image_path
         await cursor.execute('''INSERT INTO Products (
-                            productName, productDescription, size, category,  
-                            unitPrice, currentStock, image_path)
-                        VALUES (?, ?, ?, ?, ?, ?, ?);''',
-                     product.productName,
-                     product.productDescription,
-                     product.size,
-                     product.category,
-                     float(product.unitPrice),  
-                     product.quantity,  # Using 'quantity' from ADDSIZE model, which is equivalent to 'currentStock' in the DB
-                     image_path)
+                                    productName, productDescription, size, category,  
+                                    unitPrice, currentStock, image_path)
+                                VALUES (?, ?, ?, ?, ?, ?, ?);''',
+                             (product.productName,
+                              product.productDescription,
+                              product.size,
+                              product.category,
+                              float(product.unitPrice),  
+                              product.quantity,  # Using 'quantity' for 'currentStock'
+                              image_path))  # Reusing the existing image path
 
         await conn.commit()
 
         # Step 4: Retrieve the last inserted productID using SQL Server's TOP 1 with ORDER BY
         await cursor.execute('''SELECT TOP 1 productID 
-                                 FROM Products 
-                                 ORDER BY productID DESC''')
+                                FROM Products 
+                                ORDER BY productID DESC''')
         product_id_row = await cursor.fetchone()
         product_id = product_id_row[0] if product_id_row else None
 
@@ -439,14 +447,14 @@ async def add_product(product: ADDSIZE):
         # Step 5: Insert multiple variants into the productVariants table based on 'quantity'
         variants_data = [
             (generate_barcode(), generate_sku(), product_id)
-            for _ in range(product.quantity)  # Using 'quantity' here to create variants
+            for _ in range(product.quantity)  # Creating variants based on quantity
         ]
         
         await cursor.executemany('''INSERT INTO ProductVariants (barcode, productCode, productID)
-                                      VALUES (?, ?, ?);''', variants_data)
+                                    VALUES (?, ?, ?);''', variants_data)
         await conn.commit()
 
-        # Step 6: Return product size and quantity in response
+        # Step 6: Return product size, quantity, and image_path in response
         return {
             "productID": product_id,
             "productName": product.productName,
@@ -454,7 +462,8 @@ async def add_product(product: ADDSIZE):
             "size": product.size,
             "quantity": product.quantity,
             "category": product.category,
-            "unitPrice": product.unitPrice
+            "unitPrice": product.unitPrice,
+            "image_path": image_path  # Include the existing image path in the response
         }
 
     except Exception as e:
@@ -462,8 +471,96 @@ async def add_product(product: ADDSIZE):
         raise HTTPException(status_code=500, detail=str(e))
     
     finally:
-        await conn.close()
+        await conn.close()  @router.post('/products_AddSize')
+async def add_product(product: ADDSIZE):
+    conn = await database.get_db_connection()
+    cursor = await conn.cursor()
+    try:
+        # Step 1: Retrieve the existing image_path based on product name and description
+        await cursor.execute('''SELECT image_path 
+                                FROM Products 
+                                WHERE productName = ? 
+                                      AND productDescription = ? 
+                                      AND isActive = 1''',
+                             (product.productName, product.productDescription))
 
+        existing_product = await cursor.fetchone()
+        
+        if existing_product:
+            image_path = existing_product[0]  # Use the existing image path
+        else:
+            raise HTTPException(status_code=404, detail="Original product not found. Cannot add new size.")
+
+        # Step 2: Check if the same product (name, description, and size) already exists
+        await cursor.execute('''SELECT 1
+                                FROM Products
+                                WHERE productName = ? 
+                                      AND productDescription = ? 
+                                      AND size = ? 
+                                      AND isActive = 1''',
+                             (product.productName, product.productDescription, product.size))
+
+        existing_size = await cursor.fetchone()
+
+        if existing_size:
+            raise HTTPException(status_code=400, 
+                                detail=f"A product with name '{product.productName}', description '{product.productDescription}', "
+                                       f"and size '{product.size}' already exists and is active.")
+
+        # Step 3: Insert the new product size, keeping the existing image_path
+        await cursor.execute('''INSERT INTO Products (
+                                    productName, productDescription, size, category,  
+                                    unitPrice, currentStock, image_path)
+                                VALUES (?, ?, ?, ?, ?, ?, ?);''',
+                             (product.productName,
+                              product.productDescription,
+                              product.size,
+                              product.category,
+                              float(product.unitPrice),  
+                              product.quantity,  # Using 'quantity' for 'currentStock'
+                              image_path))  # Reusing the existing image path
+
+        await conn.commit()
+
+        # Step 4: Retrieve the last inserted productID using SQL Server's TOP 1 with ORDER BY
+        await cursor.execute('''SELECT TOP 1 productID 
+                                FROM Products 
+                                ORDER BY productID DESC''')
+        product_id_row = await cursor.fetchone()
+        product_id = product_id_row[0] if product_id_row else None
+
+        if not product_id:
+            raise HTTPException(status_code=500, detail='Failed to retrieve productID after insertion')
+
+        # Step 5: Insert multiple variants into the productVariants table based on 'quantity'
+        variants_data = [
+            (generate_barcode(), generate_sku(), product_id)
+            for _ in range(product.quantity)  # Creating variants based on quantity
+        ]
+        
+        await cursor.executemany('''INSERT INTO ProductVariants (barcode, productCode, productID)
+                                    VALUES (?, ?, ?);''', variants_data)
+        await conn.commit()
+
+        # Step 6: Return product size, quantity, and image_path in response
+        return {
+            "productID": product_id,
+            "productName": product.productName,
+            "productDescription": product.productDescription,
+            "size": product.size,
+            "quantity": product.quantity,
+            "category": product.category,
+            "unitPrice": product.unitPrice,
+            "image_path": image_path  # Include the existing image path in the response
+        }
+
+    except Exception as e:
+        await conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+        await conn.close()  
+        
 #delete a size
 @router.patch('/products/sizes/soft-delete')
 async def soft_delete_size(
@@ -735,4 +832,4 @@ async def delete_product_variant(variant_id: int):
         await conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        await conn.close()
+        await conn.close
