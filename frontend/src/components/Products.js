@@ -167,13 +167,13 @@ const Products = () => {
 
   const addProduct = (newProduct) => {
     console.log("Adding new product:", newProduct);
-  
+
     // Ensure the new product has a valid image URL
     const productWithImage = {
       ...newProduct,
       imageURL: newProduct.image_path || "http://127.0.0.1:8001/placeholder.png",
     };
-  
+
     // Filter only required fields
     const productWithRequiredFields = {
       productName: productWithImage.productName,
@@ -182,19 +182,13 @@ const Products = () => {
       unitPrice: productWithImage.unitPrice,
       imageURL: productWithImage.imageURL, // Ensure imageURL is included
     };
-  
-    // Update the products state without making another API call
+
     setProducts((prevState) => ({
       ...prevState,
       [newProduct.category]: [...prevState[newProduct.category], productWithRequiredFields],
     }));
-  
-    // Close the modal after the data reloads
-    closeAddModal();
   };
-  
-  
-  
+
   const editProduct = (updatedProduct, category, index) => {
     console.log("Editing product:", { updatedProduct, category, index });
 
