@@ -29,8 +29,6 @@ const AddSizeModal = ({ productName, productDescription, unitPrice, category, im
         const errorMessage = err.response?.data?.message || err.message || "An unknown error occurred.";
         console.error("Error fetching product details:", errorMessage);
     });
-    
-
   }, [productName]);
 
   const validateForm = () => {
@@ -52,8 +50,9 @@ const AddSizeModal = ({ productName, productDescription, unitPrice, category, im
   const handleSave = async () => {
     console.log("Saving form data:", formData);
     setLoading(true);
-    setError(null);
+    setError(null); // Reset any previous errors
     const errors = validateForm();
+    
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       setLoading(false);
@@ -67,18 +66,27 @@ const AddSizeModal = ({ productName, productDescription, unitPrice, category, im
         size: formData.size,
         category,
         unitPrice: parseFloat(unitPrice),
-        quantity: parseInt(formData.quantity, 10),  // Ensure it's passed as a number
-        image_path: imagePath 
+        quantity: parseInt(formData.quantity, 10),
+        image_path: imagePath
       };
 
       console.log("Payload to send:", payload);
 
       const response = await axios.post("http://127.0.0.1:8001/products/products_AddSize", payload);
-      console.log("Server response:", response.data.message);
 
-      onSave(formData);
-      setFormData({ size: '', quantity: '' });
-      onClose();
+      // Check if the server response indicates that the size already exists
+      if (response.data && response.data.message && response.data.message.includes("already exists")) {
+        setError(`Size ${formData.size} already exists for this product.`);
+      } else {
+        console.log("Server response:", response.data.message);
+        onSave(formData);
+        setFormData({ size: '', quantity: '' });
+        onClose();
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message || "An unknown error occurred.";
+      console.error("Error occurred:", errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

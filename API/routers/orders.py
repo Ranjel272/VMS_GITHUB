@@ -679,6 +679,49 @@ async def get_order_details():
     finally:
         if conn:
             await conn.close()
+            
+#TOTAL REVENUE FOR COMPLETED ORDERS 1 MONTH
+@router.get('/vms/orders/Completed/total-price/last30days')
+async def get_total_price_last_30_days():
+    conn = None
+    try:
+        # Establish database connection
+        conn = await database.get_db_connection()
+        cursor = await conn.cursor()
+
+        # Query to sum the totalPrice of all completed orders from the last 30 days
+        query = """
+        SELECT 
+            SUM(p.unitPrice * pod.orderQuantity) AS totalPrice
+        FROM 
+            purchaseOrderDetails pod
+        JOIN 
+            Products p ON pod.productID = p.productID
+        JOIN 
+            purchaseOrders po ON pod.orderID = po.orderID
+        WHERE
+            po.orderStatus = 'Received'
+            AND po.orderDate >= DATEADD(DAY, -30, GETDATE())  -- Filter for the last 30 days
+        """
+        await cursor.execute(query)
+        result = await cursor.fetchone()
+
+        # Extract total price from the result
+        total_price_last_30_days = result[0] if result[0] is not None else 0
+
+        # Close cursor and connection
+        await cursor.close()
+        await conn.close()
+
+        # Return the total price
+        return {"totalPriceLast30Days": total_price_last_30_days}
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching total price for last 30 days: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()
 
 @router.post('/vms/orders/update-status')
 async def update_order_status(order_update: OrderUpdate):

@@ -15,6 +15,7 @@ const AddProductsForm = ({ onClose }) => {
 
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(""); // Added error message state
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -43,7 +44,7 @@ const AddProductsForm = ({ onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     // Validate required fields
     if (
       !formData.productName ||
@@ -57,10 +58,10 @@ const AddProductsForm = ({ onClose }) => {
       setShowErrorModal(true); // Show error modal if any field is missing
       return;
     }
-  
+
     try {
       setIsSubmitting(true);
-  
+
       // Prepare JSON payload
       const payload = {
         productName: formData.productName,
@@ -71,7 +72,7 @@ const AddProductsForm = ({ onClose }) => {
         quantity: parseInt(formData.quantity), // Ensure it's an integer
         image: formData.image_path, // Base64 string
       };
-  
+
       // Send POST request to the API
       const response = await axios.post(
         "http://127.0.0.1:8001/products/products",
@@ -82,12 +83,19 @@ const AddProductsForm = ({ onClose }) => {
           },
         }
       );
-  
+
+      // If the product already exists
+      if (response.data.message) {
+        setErrorMessage(response.data.message); // Set the error message from the server
+        setShowErrorModal(true); // Show error modal
+        return;
+      }
+
       console.log("Product added:", response.data); // Log successful response
-  
+
       // Pass the new product back to the Products component
       onClose(response.data); // Pass the newly added product to the parent
-  
+
     } catch (error) {
       console.error("Error adding product:", error);
       alert("Failed to add product. Please try again.");
@@ -95,10 +103,10 @@ const AddProductsForm = ({ onClose }) => {
       setIsSubmitting(false);
     }
   };
-  
 
   const closeErrorModal = () => {
-    setShowErrorModal(false);
+    setShowErrorModal(false); // Close error modal
+    onClose(); // Close the entire modal
   };
 
   return (
@@ -212,8 +220,8 @@ const AddProductsForm = ({ onClose }) => {
       {showErrorModal && (
         <div className="addproduct-modal-overlay">
           <div className="addproduct-modal-content">
-            <h2>Missing Fields</h2>
-            <p>All fields are required. Please fill in all the fields.</p>
+            <h2>Product Exists</h2>
+            <p>{errorMessage}</p> 
             <button className="addproduct-submit-btn" onClick={closeErrorModal}>
               OK
             </button>

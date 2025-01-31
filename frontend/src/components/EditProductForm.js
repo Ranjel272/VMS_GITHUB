@@ -12,7 +12,6 @@ const EditProductForm = ({ product, category, onClose }) => {
   const [isAddSizeModalOpen, setAddSizeModalOpen] = useState(false);
   const [error, setError] = useState(null);
 
-  // Ensure category is part of the productData state
   useEffect(() => {
     if (product) {
       setProductData({
@@ -22,111 +21,66 @@ const EditProductForm = ({ product, category, onClose }) => {
     }
   }, [product, category]);
 
-  // Fetch sizes based on category
   useEffect(() => {
-    if (productData) {
-      const fetchSize = async () => {
-        try {
-          const categoryParam = productData.category;
-          const url = `http://127.0.0.1:8001/products/products/sizes?productName=${encodeURIComponent(productData.productName)}&unitPrice=${productData.unitPrice}&productDescription=${encodeURIComponent(productData.productDescription)}&category=${encodeURIComponent(categoryParam)}`;
-
-          console.log(`[Fetch Sizes] URL: ${url}`);
-
-          const response = await fetch(url);
-          console.log(`[Fetch Sizes] Response Status: ${response.status}`);
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log(`[Fetch Sizes] Response Data:`, data);
-
-            // Check if the returned data is in the expected format
-            if (Array.isArray(data.size)) {
-              setSize(data.size);
-
-              // Log current stock of each size fetched
-              data.size.forEach((sizeItem) => {
-                console.log(`[Fetch Sizes] Current Stock for Size ${sizeItem.size}:`, sizeItem.currentStock || 'Not available');
-              });
-            } else {
-              console.warn(`[Fetch Sizes] Invalid data format received. Expected 'size' to be an array.`);
-              setSize([]);
-              setError("Invalid size data received.");
-            }
-          } else {
-            console.error(`[Fetch Sizes] Failed with status: ${response.status}`);
-            setSize([]);
-            setError("Failed to fetch product size.");
-          }
-        } catch (error) {
-          console.error(`[Fetch Sizes] Error:`, error);
-          setSize([]);
-          setError("An error occurred while fetching product size.");
-        }
-      };
-      fetchSize();
-    }
+    fetchSize();
+    fetchSizeVariants();
   }, [productData]);
 
-  // Fetch size variants based on category
-  useEffect(() => {
-    if (productData) {
-      const fetchSizeVariants = async () => {
-        try {
-          const categoryParam = productData.category;
-          const url = `http://127.0.0.1:8001/products/products/size_variants?productName=${encodeURIComponent(productData.productName)}&unitPrice=${productData.unitPrice}&productDescription=${encodeURIComponent(productData.productDescription || '')}&category=${encodeURIComponent(categoryParam)}`;
+  const fetchSize = async () => {
+    try {
+      const url = `http://127.0.0.1:8001/products/products/sizes?productName=${encodeURIComponent(productData.productName)}&unitPrice=${productData.unitPrice}&productDescription=${encodeURIComponent(productData.productDescription)}&category=${encodeURIComponent(productData.category)}`;
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data.size)) {
+          setSize(data.size);
+        } else {
+          console.warn("Invalid size data received.");
+          setSize([]);
+          setError("Invalid size data received.");
+        }
+      } else {
+        setSize([]);
+        setError("Failed to fetch product size.");
+      }
+    } catch (error) {
+      setSize([]);
+      setError("An error occurred while fetching product size.");
+    }
+  };
 
-          console.log(`[Fetch Size Variants] URL: ${url}`);
+  const fetchSizeVariants = async () => {
+    try {
+      const url = `http://127.0.0.1:8001/products/products/size_variants?productName=${encodeURIComponent(productData.productName)}&unitPrice=${productData.unitPrice}&productDescription=${encodeURIComponent(productData.productDescription || '')}&category=${encodeURIComponent(productData.category)}`;
+      const response = await fetch(url);
 
-          const response = await fetch(url);
-          console.log(`[Fetch Size Variants] Response Status: ${response.status}`);
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log(`[Fetch Size Variants] Response Data:`, data);
-
-            if (Array.isArray(data)) {
-              setSizeVariants(data);
-            } else {
-              console.warn(`[Fetch Size Variants] Invalid data format received. Expected data to be an array.`);
-              setSizeVariants([]);
-            }
-          } else {
-            console.error(`[Fetch Size Variants] Failed with status: ${response.status}`);
-            setSizeVariants([]);
-          }
-        } catch (error) {
-          console.error(`[Fetch Size Variants] Error:`, error);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setSizeVariants(data);
+        } else {
           setSizeVariants([]);
         }
-      };
-      fetchSizeVariants();
+      } else {
+        setSizeVariants([]);
+      }
+    } catch (error) {
+      setSizeVariants([]);
     }
-  }, [productData]);
+  };
 
   const handleSizeClick = (selectedSize) => {
-    console.log("[Handle Size Click] Selected Size:", selectedSize);
     setProductData((prevData) => ({
       ...prevData,
       selectedSize,
     }));
-
-    const sizeDetails = size.find((item) => item.size === selectedSize.size);
-    setSelectedSizeDetails(sizeDetails || null);
-
-    // Log the current stock of the selected size
-    if (sizeDetails) {
-      console.log(`[Handle Size Click] Current Stock for Selected Size ${sizeDetails.size}:`, sizeDetails.currentStock || 'Not available');
-    }
+    setSelectedSizeDetails(size.find((item) => item.size === selectedSize.size) || null);
   };
 
   const handleDeleteSize = async (sizeToDelete) => {
-    if (!sizeToDelete) {
-      console.error("No size selected for deletion.");
-      return;
-    }
-  
-    console.log("[Handle Delete Size] Deleting Size:", sizeToDelete);
-  
+    if (!sizeToDelete) return;
+
     try {
       const response = await fetch(
         `http://127.0.0.1:8001/products/products/sizes/soft-delete?productName=${encodeURIComponent(productData.productName)}&unitPrice=${encodeURIComponent(productData.unitPrice)}&category=${encodeURIComponent(productData.category)}&size=${encodeURIComponent(sizeToDelete.size)}`,
@@ -137,46 +91,32 @@ const EditProductForm = ({ product, category, onClose }) => {
           },
         }
       );
-  
+
       if (response.ok) {
-        console.log("[Handle Delete Size] Successfully deleted size:", sizeToDelete);
-        // Update the local state to reflect the deletion
-        const updatedSize = size.filter((sizeItem) => sizeItem.size !== sizeToDelete.size);
-        setSize(updatedSize);
+        setSize((prevSize) => prevSize.filter((sizeItem) => sizeItem.size !== sizeToDelete.size));
         setSelectedSizeDetails(null);
       } else {
-        const errorData = await response.json();
-        console.error("[Handle Delete Size] Failed to delete size:", errorData.detail || "Unknown error");
-        alert(`Failed to delete size: ${errorData.detail || "Unknown error"}`);
+        alert(`Failed to delete size.`);
       }
     } catch (error) {
-      console.error("[Handle Delete Size] Error occurred:", error);
-      alert("An error occurred while attempting to delete the size. Please try again.");
+      alert("An error occurred while attempting to delete the size.");
     }
   };
-  
 
   const handleSaveSize = (updatedSizeDetails) => {
-    console.log("[Handle Save Size] Saving Updated Size Details:", updatedSizeDetails);
-    const updatedSize = size.map((sizeItem) =>
-      sizeItem.size === selectedSizeDetails.size ? { ...sizeItem, ...updatedSizeDetails } : sizeItem
+    setSize((prevSize) =>
+      prevSize.map((sizeItem) =>
+        sizeItem.size === selectedSizeDetails.size ? { ...sizeItem, ...updatedSizeDetails } : sizeItem
+      )
     );
-    setSize(updatedSize);
     setSelectedSizeDetails(updatedSizeDetails);
-  };
-
-  const handleAddSize = () => {
-    console.log("[Handle Add Size] Opening Add Size Modal");
-    setAddSizeModalOpen(true);
   };
 
   return (
     <div className="edit-product-form">
-      {/* Close Button */}
       <button className="Editp-close-button" onClick={onClose}>x</button>
 
       <div className="scrollable-container">
-        {/* Photo Section */}
         <div className="photo-section">
           <div className="photo-placeholder">
             {productData.imageURL ? (
@@ -187,7 +127,6 @@ const EditProductForm = ({ product, category, onClose }) => {
           </div>
         </div>
 
-        {/* Details Section */}
         <div className="details-section">
           <div className="details">
             <p><strong>PRODUCT NAME:</strong> {productData.productName}</p>
@@ -196,7 +135,6 @@ const EditProductForm = ({ product, category, onClose }) => {
           </div>
         </div>
 
-        {/* Size Section */}
         <div className="size-options">
           {size.length === 0 ? (
             <p>No sizes available</p>
@@ -209,14 +147,20 @@ const EditProductForm = ({ product, category, onClose }) => {
           )}
         </div>
 
-        {/* Action Buttons Section */}
         <div className="actions-section">
-          <button className="action-button save-button" onClick={() => setEditModalOpen(true)}>EDIT</button>
+        <button 
+  className="action-button save-button" 
+  onClick={() => {
+    console.log("Opening EditSizeModal with:", selectedSizeDetails);
+    setEditModalOpen(true);
+  }}
+>
+  EDIT
+</button>
           <button className="action-button delete-button" onClick={() => handleDeleteSize(selectedSizeDetails)}>DELETE</button>
-          <button className="action-button add-size-button" onClick={handleAddSize}>ADD SIZE</button>
+          <button className="action-button add-size-button" onClick={() => setAddSizeModalOpen(true)}>ADD SIZE</button>
         </div>
 
-        {/* Size Information */}
         {selectedSizeDetails && (
           <div className="size-details">
             <h4>Selected Size Details</h4>
@@ -224,7 +168,6 @@ const EditProductForm = ({ product, category, onClose }) => {
           </div>
         )}
 
-        {/* Table Section */}
         <div className="table-section">
           <h3>Size Information</h3>
           <table className="size-table">
@@ -253,40 +196,44 @@ const EditProductForm = ({ product, category, onClose }) => {
           </table>
         </div>
 
-        {/* Error Message */}
         {error && <div className="error-message">{error}</div>}
       </div>
 
-      {/* Edit Size Modal */}
       {isEditModalOpen && selectedSizeDetails && (
-        <EditSizeModal
-          selectedSize={selectedSizeDetails}
-          productName={productData.productName}
-          productDescription={productData.productDescription}
-          unitPrice={productData.unitPrice}
-          category={productData.category}
-          onClose={() => setEditModalOpen(false)}
-          onSave={handleSaveSize}
-        />
-      )}
+  <EditSizeModal
+    selectedSize={selectedSizeDetails}
+    productName={productData.productName}
+    productDescription={productData.productDescription}
+    unitPrice={productData.unitPrice}
+    category={productData.category}
+    onClose={() => {
+      setEditModalOpen(false);
+      fetchSize();
+      fetchSizeVariants(); // Refresh size variants when modal closes
+    }}
+    onSave={(updatedSizeDetails) => {
+      handleSaveSize(updatedSizeDetails);
+      fetchSizeVariants(); // Refresh size variants after saving
+    }}
+  />
+)}
 
-      {/* Add Size Modal */}
+
       {isAddSizeModalOpen && (
         <AddSizeModal
           onClose={() => {
-            console.log("[Handle Add Size] Closing Add Size Modal");
             setAddSizeModalOpen(false);
           }}
           onSave={(newSize) => {
-            console.log("[Handle Add Size] Saving New Size:", newSize);
             setSize((prevSize) => [...prevSize, newSize]);
             setAddSizeModalOpen(false);
+            fetchSizeVariants(); // Refresh after adding a new size
           }}
           productName={productData.productName}
           productDescription={productData.productDescription}
           unitPrice={productData.unitPrice}
           category={productData.category}
-          imagePath={productData.image_path} 
+          imagePath={productData.image_path}
         />
       )}
     </div>

@@ -103,12 +103,30 @@ class ADDSIZE(BaseModel):
     quantity: int  
     image_path: str 
 
-
+class ProductUpdates(BaseModel):
+    productName: str  # Current product name
+    productDescription: str  # Current product description
+    category: str  # Current category
+    unitPrice: float  # Current unit price
+    newProductName: str  # New product name
+    newProductDescription: str  # New product description
+    newCategory: str  # New category
+    newUnitPrice: float  # New unit price
+    newImage: str  # New image URL or path
+    
 # class Product(BaseModel):
 #     productName: str
 #     productDescription: str
 #     category: str
 #     unitPrice: float
+
+class ProductSizeUpdate(BaseModel):
+    productName: str
+    productDescription: str
+    size: str
+    category: str
+    unitPrice: float
+    newSize: str
     
 
 @router.post('/products')
@@ -119,26 +137,20 @@ async def add_product(product: Product):
         # Save the Base64 image to file and get the path
         image_path = save_base64_image(product.image)
 
-        # Check if the product already exists
+        # Check if the product already exists with the same productName and category
         await cursor.execute(''' 
             SELECT productID, productName, productDescription, size, category, unitPrice
             FROM Products
-            WHERE productName = ? AND isActive = 1
-        ''', (product.productName,))
+            WHERE productName = ? AND category = ? AND isActive = 1
+        ''', (product.productName, product.category))
         existing_product = await cursor.fetchone()
 
         if existing_product:
-            # Compare fields of existing product
-            if (existing_product[1] == product.productName and 
-                existing_product[2] == product.productDescription and
-                existing_product[3] == product.size and
-                existing_product[5] == product.category and
-                existing_product[6] == product.unitPrice 
-            ):
-                return {'message': f'Product "{product.productName}" already exists. Add more quantity if needed.'}
+            # If an existing product with the same productName and category is found
+            return {'message': f'Product "{product.productName}" with category "{product.category}" already exists. Add more size if needed.'}
 
         # Insert new product into Products table
-        await cursor.execute('''
+        await cursor.execute(''' 
             INSERT INTO Products (
                 productName, productDescription, size, category, 
                 unitPrice, image_path, currentStock, isActive
@@ -177,6 +189,166 @@ async def add_product(product: Product):
     
     finally:
         await conn.close()
+
+
+@router.post('/products/updateSize')
+async def update_product(productData: ProductSizeUpdate):
+    conn = await database.get_db_connection()
+    cursor = await conn.cursor()
+
+    try:
+        # Step 1: Select the productID based on given fields
+        await cursor.execute(''' 
+            SELECT productID FROM Products 
+            WHERE productName = ? AND productDescription = ? AND size = ? 
+                  AND category = ? AND unitPrice = ? AND isActive = 1
+            ''',
+            productData.productName, 
+            productData.productDescription, 
+            productData.size, 
+            productData.category, 
+            float(productData.unitPrice)
+        )
+
+        product_row = await cursor.fetchone()
+        if not product_row:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Product '{productData.productName}' not found with the given details."
+            )
+
+        # Extract the productID
+        product_id = product_row[0]
+
+        # Step 2: Check if the new size already exists for the same productName
+        await cursor.execute('''
+            SELECT 1 FROM Products 
+            WHERE productName = ? AND size = ? AND isActive = 1
+            ''', productData.productName, productData.newSize)
+
+        existing_size = await cursor.fetchone()
+        if existing_size:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Size '{productData.newSize}' already exists for the product '{productData.productName}'."
+            )
+
+        # Step 3: Check if the current size is different from the new size before updating
+        if productData.size == productData.newSize:
+            raise HTTPException(
+                status_code=400,
+                detail="The size is already set to the new size. No changes are needed."
+            )
+
+        # Step 4: Update the size
+        await cursor.execute(''' 
+            UPDATE Products
+            SET size = ?
+            WHERE productID = ? AND isActive = 1
+            ''', 
+            productData.newSize,
+            product_id
+        )
+        await conn.commit()
+
+        # Step 5: Return success message with updated data
+        return {
+            "message": f"Product with ID {product_id} updated successfully.",
+            "updated_product": {
+                "productID": product_id,
+                "newSize": productData.newSize
+            }
+        }
+
+    except Exception as e:
+        await conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await conn.close()
+
+
+@router.put('/products/update-details')
+async def update_product_details(productData: ProductUpdates):
+    conn = await database.get_db_connection()
+    cursor = await conn.cursor()
+
+    try:
+        # Step 1: Update all matching products based on the current values
+        await cursor.execute(
+            '''UPDATE Products
+               SET productName = ?, productDescription = ?, category = ?, unitPrice = ?, image_path = ?
+               WHERE productName = ? AND productDescription = ? AND category = ? AND unitPrice = ? AND isActive = 1''',
+            productData.newProductName, productData.newProductDescription, productData.newCategory, 
+            float(productData.newUnitPrice), productData.newImage, 
+            productData.productName, productData.productDescription, productData.category, float(productData.unitPrice)
+        )
+        await conn.commit()
+
+        # Step 2: Fetch the updated products to confirm the changes
+        await cursor.execute(
+            '''SELECT productName, productDescription, category, unitPrice, image_path
+               FROM Products
+               WHERE productName = ? AND productDescription = ? AND category = ? AND unitPrice = ? AND isActive = 1''',
+            productData.newProductName, productData.newProductDescription, productData.newCategory, 
+            float(productData.newUnitPrice)
+        )
+        updated_products = await cursor.fetchall()
+
+        if not updated_products:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No products found with the specified criteria."
+            )
+
+        return {
+            "message": f"Products updated successfully.",
+            "updated_products": [
+                {
+                    "productName": product[0],
+                    "productDescription": product[1],
+                    "category": product[2],
+                    "unitPrice": product[3],
+                    "image_path": product[4]
+                } for product in updated_products
+            ]
+        }
+    except Exception as e:
+        await conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await conn.close()
+        
+@router.patch('/products/soft-delete')
+async def soft_delete_products(productName: str, category: str):
+    conn = await database.get_db_connection()
+    try:
+        async with conn.cursor() as cursor:
+            # Check if products exist and are currently active
+            await cursor.execute(''' 
+                SELECT COUNT(*) 
+                FROM Products 
+                WHERE productName = ? 
+                AND category = ? 
+                AND isActive = 1
+            ''', (productName, category))
+
+            count = await cursor.fetchone()
+
+            if count[0] == 0:
+                raise HTTPException(status_code=404, detail="No active products found for the given product name and category")
+
+            # Perform soft delete by setting isActive to 0 for all matching products
+            await cursor.execute(''' 
+                UPDATE Products 
+                SET isActive = 0 
+                WHERE productName = ? 
+                AND category = ? 
+            ''', (productName, category))
+
+            await conn.commit()
+            return {"detail": "Products soft deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # Get all Women's products
 @router.get("/products/Womens-Leather-Shoes")
@@ -383,7 +555,6 @@ async def get_size_variants(productName: str, unitPrice: float, category: str, p
     finally:    
         await conn.close()
 
-#add size
 @router.post('/products_AddSize')
 async def add_product(product: ADDSIZE):
     conn = await database.get_db_connection()
@@ -405,7 +576,7 @@ async def add_product(product: ADDSIZE):
             raise HTTPException(status_code=404, detail="Original product not found. Cannot add new size.")
 
         # Step 2: Check if the same product (name, description, and size) already exists
-        await cursor.execute('''SELECT 1
+        await cursor.execute('''SELECT productID, currentStock
                                 FROM Products
                                 WHERE productName = ? 
                                       AND productDescription = ? 
@@ -416,11 +587,40 @@ async def add_product(product: ADDSIZE):
         existing_size = await cursor.fetchone()
 
         if existing_size:
-            raise HTTPException(status_code=400, 
-                                detail=f"A product with name '{product.productName}', description '{product.productDescription}', "
-                                       f"and size '{product.size}' already exists and is active.")
+            # If size exists, just update the quantity (currentStock)
+            product_id, current_stock = existing_size
+            new_quantity = current_stock + product.quantity  # Add the new quantity to existing stock
 
-        # Step 3: Insert the new product size, keeping the existing image_path
+            # Update the product quantity in the Products table
+            await cursor.execute('''UPDATE Products 
+                                    SET currentStock = ? 
+                                    WHERE productID = ?''', 
+                                 (new_quantity, product_id))
+            await conn.commit()
+
+            # Insert new variants into ProductVariants based on the new quantity
+            variants_data = [
+                (generate_barcode(), generate_sku(), product_id)
+                for _ in range(product.quantity)  # Creating variants based on quantity
+            ]
+            
+            await cursor.executemany('''INSERT INTO ProductVariants (barcode, productCode, productID)
+                                        VALUES (?, ?, ?);''', variants_data)
+            await conn.commit()
+
+            return {
+                "message": f"Quantity updated for product '{product.productName}' with size '{product.size}'. New quantity: {new_quantity}",
+                "productID": product_id,
+                "productName": product.productName,
+                "productDescription": product.productDescription,
+                "size": product.size,
+                "quantity": new_quantity,
+                "category": product.category,
+                "unitPrice": product.unitPrice,
+                "image_path": image_path
+            }
+
+        # Step 3: Insert the new product size if it does not exist
         await cursor.execute('''INSERT INTO Products (
                                     productName, productDescription, size, category,  
                                     unitPrice, currentStock, image_path)
@@ -469,11 +669,14 @@ async def add_product(product: ADDSIZE):
 
     except Exception as e:
         await conn.rollback()
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
     finally:
-        await conn.close()  
-        
+        await conn.close()
+
+
 #delete a size
 @router.patch('/products/sizes/soft-delete')
 async def soft_delete_size(
@@ -518,8 +721,70 @@ async def soft_delete_size(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         await conn.close()
+        
+#dashboard Total Products 
+@router.get("/products/count")
+async def count_unique_products():
+    conn = None
+    try:
+        # Establish database connection
+        conn = await database.get_db_connection()
+        cursor = await conn.cursor()
 
+        # Query to count unique products by productName and category (grouped by productName and category)
+        query = """
+            SELECT COUNT(*)
+            FROM (
+                SELECT productName, category
+                FROM Products
+                WHERE isActive = 1
+                GROUP BY productName, category
+            ) AS unique_products;
+        """
+        await cursor.execute(query)
+        result = await cursor.fetchone()
 
+        # Return the count
+        return {"Total Products": result[0]}
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error counting unique products: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()
+
+#Product.js count all the products
+@router.get("/products/active/count")
+async def count_unique_active_products():
+    conn = None
+    try:
+        # Establish database connection
+        conn = await database.get_db_connection()
+        cursor = await conn.cursor()
+
+        # Query to count unique active products based on productName and category
+        query = """
+            SELECT COUNT(*)
+            FROM (
+                SELECT productName, category
+                FROM Products
+                WHERE isActive = 1
+                GROUP BY productName, category
+            ) AS unique_active_products
+        """
+        await cursor.execute(query)
+        result = await cursor.fetchone()
+
+        # Return the count
+        return {"Total Unique Active Products": result[0]}
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error counting unique active products: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()
 
 # add quantities to an existing products
 @router.post('/products/add-quantity')

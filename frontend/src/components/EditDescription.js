@@ -15,6 +15,7 @@ const EditDescription = ({ onClose, productData }) => {
 
   // Populate form data when editing an existing product
   useEffect(() => {
+    console.log("Opening Edit Description modal for:", productData); // Check the data here
     if (productData) {
       setFormData({
         productName: productData.productName || "",
@@ -100,7 +101,7 @@ const EditDescription = ({ onClose, productData }) => {
             <input
               type="text"
               name="productName"
-              value={formData.productName}
+              value={formData.productName || ""} // Ensure this is bound properly
               onChange={handleChange}
               placeholder="Enter product name"
             />
@@ -110,7 +111,7 @@ const EditDescription = ({ onClose, productData }) => {
             <label>Description</label>
             <textarea
               name="productDescription"
-              value={formData.productDescription}
+              value={formData.productDescription || ""} // Ensure this is bound properly
               onChange={handleChange}
               placeholder="Enter product description"
             />
@@ -121,7 +122,7 @@ const EditDescription = ({ onClose, productData }) => {
             <input
               type="text"
               name="unitPrice"
-              value={formData.unitPrice}
+              value={formData.unitPrice || ""} // Ensure this is bound properly
               onChange={handleChange}
               placeholder="Enter price"
             />
@@ -134,7 +135,7 @@ const EditDescription = ({ onClose, productData }) => {
               <div className="image-placeholder">
                 {formData.image_path ? (
                   <img
-                    src={formData.image_path}
+                    src={`http://127.0.0.1:8001/${formData.image_path}`} // Ensure it has the full path
                     alt="Product"
                     style={{ maxWidth: "100px", maxHeight: "100px" }}
                   />

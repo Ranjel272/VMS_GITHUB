@@ -145,3 +145,43 @@ body {
   gap: 20px; /* Adjust this value to control the space between cards */
   justify-content: center; /* Centers the cards horizontally */
 }
+
+/* Product Card Actions (Edit and Delete buttons) */
+.product-card-actions {
+  display: flex;
+  justify-content: space-between; /* Distribute buttons evenly across the available space */
+  margin-top: 10px; /* Add some space below the product name */
+  width: 100%; /* Ensure the buttons occupy the full width */
+}
+
+/* Edit Button */
+.edit-btn {
+  background-color: #ff8c42;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.edit-btn:hover {
+  background-color: #d65a1e;
+}
+
+/* Delete Button */
+.delete-btn {
+  background-color: #ff8c42; /* Same color as the edit button */
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.delete-btn:hover {
+  background-color: #d65a1e; /* Same hover effect as edit button */
+}

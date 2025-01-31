@@ -19,7 +19,6 @@ const Products = () => {
 
   useEffect(() => {
     fetchWomenProducts();
-  
   }, []);
 
   const fetchWomenProducts = async () => {
@@ -71,6 +70,7 @@ const Products = () => {
       console.error("Error fetching men's products:", error);
     }
   };
+
   useEffect(() => {
     console.log("Fetching girls's products...");
     fetchgirlsProducts();
@@ -96,6 +96,7 @@ const Products = () => {
       console.error("Error fetching girl's products:", error);
     }
   };
+
   useEffect(() => {
     console.log("Fetching boy's products...");
     fetchboysProducts();
@@ -122,7 +123,6 @@ const Products = () => {
     }
   };
 
-
   const openAddModal = () => {
     console.log("Opening Add Product modal");
     setIsAddModalOpen(true);
@@ -131,6 +131,10 @@ const Products = () => {
   const closeAddModal = () => {
     console.log("Closing Add Product modal");
     setIsAddModalOpen(false);
+    fetchmenProducts();
+    fetchWomenProducts();
+    fetchgirlsProducts();
+    fetchboysProducts();
   };
 
   const openEditModal = (product, index, category) => {
@@ -152,10 +156,11 @@ const Products = () => {
   const openDescriptionModal = (product, index, category) => {
     console.log("Opening Edit Description modal for:", { product, index, category });
     setSelectedProduct({
-      product,
-      index,
-      category,
+      productName: product.productName,
+      productDescription: product.productDescription,
       imageURL: product.imageURL,
+      category: category,
+      index: index,
     });
     setIsDescriptionModalOpen(true);
   };
@@ -233,6 +238,41 @@ const Products = () => {
 
       displayedNames.add(product.productName); // Mark this product as displayed
 
+      const deleteProduct = async () => {
+        try {
+          // Log the data being sent to the backend
+          const requestData = {
+            productName: product.productName,
+            category: category,
+          };
+          console.log("Sending delete request with data:", requestData);
+
+          // Send request to backend with query parameters
+          const response = await axios.patch(
+            `http://127.0.0.1:8001/products/products/soft-delete?productName=${product.productName}&category=${category}`
+          );
+
+          console.log("Response data:", response.data); // Log the response from the server
+
+          // If successful, remove the product from the UI
+          if (response.data && response.data.detail === "Products soft deleted successfully") {
+            const updatedProducts = products[category].filter((_, idx) => idx !== index);
+
+            setProducts((prevState) => ({
+              ...prevState,
+              [category]: updatedProducts,
+            }));
+
+            console.log(`Product "${product.productName}" soft deleted from ${category}`);
+          }
+        } catch (error) {
+          console.error("Error deleting product:", error);
+          if (error.response) {
+            console.error("Error response from backend:", error.response.data);
+          }
+        }
+      };
+
       return (
         <div className="product-card" key={index}>
           <img
@@ -248,46 +288,21 @@ const Products = () => {
             className="edit-btn"
             onClick={() => openDescriptionModal(product, index, category)}  // Open the description modal when edit button is clicked
           >
-            Edit 
+            Edit
+          </button>
+          <button
+            className="delete-btn"
+            onClick={deleteProduct}  // Trigger the soft delete function
+          >
+            Delete
           </button>
         </div>
       );
     });
   };
-  const getTotalUniqueProducts = () => {
-    const allProducts = [
-      ...products.women,
-      ...products.men,
-      ...products.girls,
-      ...products.boys,
-    ];
-    const uniqueProducts = new Set(allProducts.map((product) => product.productName));
-    return uniqueProducts.size;
-  };
+
   return (
-    
     <div className="products-container">
-      <div className="dashboard">
-        {/* Total Number of Unique Products */}
-        <div className="category-box">
-          <h2>{getTotalUniqueProducts()}</h2>
-          <p>Total Products</p>
-        </div>
-
-        {/* Total Products per Category */}
-        {["women", "men", "girls", "boys"].map((category) => (
-           <div key={category} className="category-box">
-           {/* Count unique products within each category, considering product name and size */}
-           <h2>
-             {new Set(
-               products[category].map((product) => `${product.productName}-${product.size}`)
-             ).size}
-           </h2>
-           <p>{category.charAt(0).toUpperCase() + category.slice(1)}</p>
-         </div>
-        ))}
-      </div>
-
       <button className="add-product-btn" onClick={openAddModal}>
         Add Product
       </button>
@@ -307,10 +322,12 @@ const Products = () => {
       {isDescriptionModalOpen && selectedProduct && (
         <EditDescription
           onClose={closeDescriptionModal}
-          product={selectedProduct.product}
+          productName={selectedProduct.productName}
+          productDescription={selectedProduct.productDescription}
+          imageURL={selectedProduct.imageURL}
+          category={selectedProduct.category}
           index={selectedProduct.index}
           editDescription={editDescription}
-          category={selectedProduct.category}
         />
       )}
 
@@ -323,7 +340,7 @@ const Products = () => {
             </div>
           </div>
         ))}
-      </div>
+      </div> 
     </div>
   );
 };

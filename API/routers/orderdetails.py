@@ -246,3 +246,59 @@ async def get_order_details():
     finally:
         if conn:
             await conn.close()
+
+@router.get("/orders/last30days/count")
+async def count_last_30_days_orders():
+    conn = None
+    try:
+        # Establish database connection
+        conn = await database.get_db_connection()
+        cursor = await conn.cursor()
+
+        # Query to count orders from the last 30 days based on orderStatus
+        query = """
+            SELECT COUNT(*)
+            FROM purchaseOrders
+            WHERE orderDate >= DATEADD(DAY, -30, GETDATE()) 
+              AND orderStatus IS NOT NULL;
+        """
+        await cursor.execute(query)
+        result = await cursor.fetchone()
+
+        # Return the count
+        return {"orderCount": result[0]}
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error counting orders: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()
+
+@router.get("/orders/delivered/last30days/count")
+async def count_last_30_days_delivered_orders():
+    conn = None
+    try:
+        # Establish database connection
+        conn = await database.get_db_connection()
+        cursor = await conn.cursor()
+
+        # Query to count delivered orders from the last 30 days based on orderStatus
+        query = """
+            SELECT COUNT(*)
+            FROM purchaseOrders
+            WHERE orderDate >= DATEADD(DAY, -30, GETDATE()) 
+              AND orderStatus = 'Delivered';
+        """
+        await cursor.execute(query)
+        result = await cursor.fetchone()
+
+        # Return the count
+        return {"deliveredOrderCount": result[0]}
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error counting delivered orders: {str(e)}")
+    finally:
+        if conn:
+            await conn.close()

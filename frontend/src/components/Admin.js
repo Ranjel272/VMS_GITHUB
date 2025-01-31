@@ -12,7 +12,7 @@ const Admin = ({ onClose }) => {
 
   const handleConfirmLogout = () => {
     setShowConfirmModal(false);
-    navigate("/landing"); // Navigate to the landing page
+    navigate("/login"); // Navigate to the login page after confirming logout
   };
 
   const handleCancelLogout = () => {

@@ -5,10 +5,6 @@ import "./EditSizeModal.css";
 const EditSizeModal = ({ selectedSize, productName, productDescription, unitPrice, category, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     size: selectedSize.size,
-    threshold: selectedSize.threshold,
-    reorderLevel: selectedSize.reorderQuantity,
-    maxQuantity: selectedSize.maxQuantity,
-    minQuantity: selectedSize.minQuantity,
   });
 
   const [loading, setLoading] = useState(false);
@@ -32,14 +28,10 @@ const EditSizeModal = ({ selectedSize, productName, productDescription, unitPric
         category,
         unitPrice,
         newSize: formData.size,
-        minStockLevel: parseInt(formData.minQuantity),
-        maxStockLevel: parseInt(formData.maxQuantity),
-        reorderLevel: parseInt(formData.reorderLevel),
-        threshold: parseInt(formData.threshold),
       };
 
       // Send a PUT request to the backend API
-      const response = await axios.put("/ims/products/update", payload);
+      const response = await axios.post("http://127.0.0.1:8001/products/products/updateSize", payload);
 
       // Handle successful update
       console.log(response.data.message);

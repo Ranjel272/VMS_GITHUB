@@ -403,29 +403,28 @@ const Orders = () => {
         </div>
 
         {/* Delivered Orders */}
-        <div className="orders-section">
-          <h3>Delivered Orders</h3>
-          <div className="scrollable-list">
-            {deliveredOrders.map((order) => (
-              <div className="order-item" key={order.id}>
-                <div className="order-photo">
-                  <img src={order.image} alt={order.productName} className="product-image" />
-                </div>
-                <div className="order-details">
-                  <h4>{order.productName}</h4>
-                  <p>Category: {order.category}</p>
-                  <p>Quantity: {order.quantity}</p>
-                  <p>Price: {order.total}</p>
-                </div>
-                <div className="order-actions">
-                  <button className="complete-btn" onClick={() => sendOrderToComplete(order.id, setCompletedOrders, setDeliveredOrders, deliveredOrders)}>
-                    Complete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+<div className="orders-section">
+  <h3>Delivered Orders</h3>
+  <div className="scrollable-list">
+    {deliveredOrders.map((order) => (
+      <div className="order-item" key={order.id}>
+        <div className="order-photo">
+          <img src={order.image} alt={order.productName} className="product-image" />
         </div>
+        <div className="order-details">
+          <h4>{order.productName}</h4>
+          <p>Category: {order.category}</p>
+          <p>Quantity: {order.quantity}</p>
+          <p>Price: {order.total}</p>
+        </div>
+        <div className="order-actions">
+         
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
         {/* Completed Orders */}
         <div className="orders-section">
